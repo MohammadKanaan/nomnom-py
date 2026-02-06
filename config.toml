@@ -7,3 +7,11 @@ recursive = false
 name = "test"
 paths = ["/test"]
 recursive = false
+
+[[plugin]]
+name = "transcribe"
+priority = 10
+
+[[plugin]]
+name = "pdf-parser"
+priority = 20
