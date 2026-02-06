@@ -1,0 +1,9 @@
+[[watch]]
+name = "data"
+paths = ["/data"]
+recursive = false
+
+[[watch]]
+name = "test"
+paths = ["/test"]
+recursive = false
