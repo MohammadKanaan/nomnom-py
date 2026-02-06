@@ -5,7 +5,7 @@ description = "Plugin-based CLI file watcher"
 requires-python = ">=3.11"
 dependencies = [
     "typer>=0.9",
-    "watchdog>=3.0",
+    "watchfiles>=0.21",
 ]
 
 [project.scripts]

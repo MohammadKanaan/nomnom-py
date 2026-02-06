@@ -7,7 +7,6 @@ import tomllib
 class WatchGroup:
     name: str
     paths: list[Path]
-    recursive: bool = False
 
 
 @dataclass
@@ -30,7 +29,6 @@ def load_config(path: Path) -> Config:
         WatchGroup(
             name=w["name"],
             paths=[Path(p) for p in w["paths"]],
-            recursive=w.get("recursive", False),
         )
         for w in data["watch"]
     ]
