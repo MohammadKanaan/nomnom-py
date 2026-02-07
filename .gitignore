@@ -47,3 +47,6 @@ htmlcov/
 
 # plugins
 plugins/
+
+# config
+config.toml

@@ -1,0 +1,9 @@
+plugin = [
+    { name = "faster-whisper", priority = 10 },
+]
+
+[[watch]]
+name = "transcribe"
+paths = [
+    "/Users/user/Documents/audio",
+]
