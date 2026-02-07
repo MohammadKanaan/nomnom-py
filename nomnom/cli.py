@@ -12,7 +12,10 @@ from nomnom.create_plugin import create_plugin
 from nomnom.discovery import discover_plugins, prioritize_plugins
 from nomnom.watcher import run_watcher
 
-app = typer.Typer(help="Plugin-based file watcher CLI")
+app = typer.Typer(
+    help="Plugin-based file watcher CLI",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 console = Console()
 
 app.command("create-plugin")(create_plugin)
