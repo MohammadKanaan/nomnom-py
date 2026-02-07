@@ -6,6 +6,7 @@ from pathlib import Path
 
 from nomnom.config import Config
 from nomnom.plugin import Plugin
+from nomnom.validation import validate_module_path_containment
 
 logger = logging.getLogger(__name__)
 
@@ -87,19 +88,11 @@ def _load_plugin_from_target(
         logger.warning(f"Invalid target for local plugin '{name}': {target}")
         return None
 
-    # Convert module path to file path
-    # e.g. "nomnom_plugin_transcribe" -> "nomnom_plugin_transcribe/__init__.py"
-    # e.g. "nomnom_plugin_transcribe.core" -> "nomnom_plugin_transcribe/core.py"
-    parts = module_path.split(".")
-    file_path = plugin_root / Path(*parts[:-1]) / f"{parts[-1]}.py"
-
-    if not file_path.is_file():
-        # Try as package (__init__.py)
-        file_path = plugin_root / Path(*parts) / "__init__.py"
-
-    if not file_path.is_file():
+    file_path = validate_module_path_containment(plugin_root, module_path)
+    if file_path is None:
         logger.warning(
-            f"Cannot find module file for local plugin '{name}': {file_path}"
+            f"Invalid or unsafe module path for local plugin '{name}': "
+            f"{module_path} (must be contained within plugin directory)"
         )
         return None
 

@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from nomnom.discovery import PLUGINS_DIR
+from nomnom.validation import validate_plugin_name
 
 console = Console()
 
@@ -14,7 +15,15 @@ def create_plugin(
     """Scaffold a new local plugin in the plugins/ directory."""
 
     # Normalize naming: hyphens for package dir, underscores for module
-    slug = name.lower().strip().replace("_", "-")
+    try:
+        slug = validate_plugin_name(name)
+    except ValueError as e:
+        console.print(f"[red]Invalid plugin name:[/] {e}")
+        console.print(
+            "[yellow]Plugin names should use letters, numbers, and hyphens[/]\n"
+            "[dim]Examples: 'transcribe', 'pdf-parser', 'image-resizer'[/]"
+        )
+        raise typer.Exit(1)
     package_name = f"nomnom-plugin-{slug}"
     module_name = f"nomnom_plugin_{slug.replace('-', '_')}"
     class_name = "".join(word.capitalize() for word in slug.split("-")) + "Plugin"
@@ -84,7 +93,7 @@ class {class_name}:
             f"Edit [magenta]{class_name}[/] in [cyan]{module_dir / '__init__.py'}[/]\n"
             f"to define your matches() and handle() logic.\n\n"
             f"Add to your config.toml:\n"
-            f'  [dim][[plugin]]\n  name = "{slug}"\n  priority = 50[/]',
+            f'  [dim][[plugins]]\n  name = "{slug}"\n  priority = 50[/]',
             title="nomnom create-plugin",
             border_style="green",
         )
