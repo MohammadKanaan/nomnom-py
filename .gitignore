@@ -44,3 +44,6 @@ htmlcov/
 
 # Project-specific
 *.toml.local
+
+# plugins
+plugins/
