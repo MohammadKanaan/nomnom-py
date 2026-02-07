@@ -1,5 +1,6 @@
 import importlib.util
 import logging
+import sys
 import tomllib
 from importlib.metadata import entry_points
 from pathlib import Path
@@ -103,7 +104,16 @@ def _load_plugin_from_target(
             return None
 
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        previous_module = sys.modules.get(module_path)
+        sys.modules[module_path] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            if previous_module is not None:
+                sys.modules[module_path] = previous_module
+            else:
+                sys.modules.pop(module_path, None)
+            raise
 
         plugin_class = getattr(module, class_name)
         plugin = plugin_class()
