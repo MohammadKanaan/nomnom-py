@@ -4,7 +4,7 @@ from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
 from nomnom.events import EventType
-from nomnom.watcher import CHANGE_MAP, _build_group_index, _resolve_group
+from nomnom.watcher import CHANGE_MAP, _build_group_index, _coalesce_changes, _resolve_group
 
 
 def test_build_group_index_creates_entries(tmp_path: Path) -> None:
@@ -68,3 +68,38 @@ def test_change_map_covers_all_types() -> None:
     assert CHANGE_MAP[Change.added] is EventType.CREATED
     assert CHANGE_MAP[Change.modified] is EventType.MODIFIED
     assert CHANGE_MAP[Change.deleted] is EventType.DELETED
+
+
+def test_coalesce_prefers_deleted_when_added_and_deleted_for_missing_path(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "churn.txt"
+
+    result = _coalesce_changes(
+        {(Change.added, str(path)), (Change.deleted, str(path))}
+    )
+
+    assert result == [(Change.deleted, str(path))]
+
+
+def test_coalesce_prefers_added_when_added_and_deleted_for_existing_path(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "churn.txt"
+    path.write_text("ok")
+
+    result = _coalesce_changes(
+        {(Change.added, str(path)), (Change.deleted, str(path))}
+    )
+
+    assert result == [(Change.added, str(path))]
+
+
+def test_coalesce_prefers_added_over_modified_for_same_path(tmp_path: Path) -> None:
+    path = tmp_path / "update.txt"
+
+    result = _coalesce_changes(
+        {(Change.added, str(path)), (Change.modified, str(path))}
+    )
+
+    assert result == [(Change.added, str(path))]

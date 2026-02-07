@@ -17,6 +17,20 @@ def test_execute_move_file(tmp_path: Path) -> None:
     assert destination.read_text() == "hello"
 
 
+def test_execute_move_file_missing_source_is_noop(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    source = tmp_path / "missing.txt"
+    destination = tmp_path / "nested" / "dst.txt"
+    caplog.set_level("WARNING")
+
+    execute(MoveFile(source=source, destination=destination))
+
+    assert not destination.exists()
+    assert "Move skipped; source missing" in caplog.text
+
+
 def test_execute_delete_file(tmp_path: Path) -> None:
     path = tmp_path / "to-delete.txt"
     path.write_text("bye")
