@@ -62,6 +62,61 @@ def test_discover_local_loads_valid_plugin(tmp_path: Path) -> None:
     assert plugin.__class__.__name__ == "SafePlugin"
 
 
+def test_discover_local_loads_dataclass_plugin_with_future_annotations(
+    tmp_path: Path,
+) -> None:
+    plugins_dir = tmp_path / "plugins"
+    plugin_root = plugins_dir / "nomnom-plugin-fancy"
+    module_dir = plugin_root / "nomnom_plugin_fancy"
+    module_dir.mkdir(parents=True)
+
+    (module_dir / "__init__.py").write_text(
+        textwrap.dedent(
+            """
+            from __future__ import annotations
+
+            from dataclasses import dataclass
+
+            @dataclass
+            class Payload:
+                values: list[str]
+
+            class FancyPlugin:
+                def __init__(self):
+                    self.payload = Payload(values=[])
+
+                def matches(self, event):
+                    return False
+
+                def handle(self, event):
+                    return []
+            """
+        ).strip()
+        + "\n"
+    )
+
+    (plugin_root / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "nomnom-plugin-fancy"
+            version = "0.1.0"
+
+            [project.entry-points."nomnom.plugins"]
+            fancy = "nomnom_plugin_fancy:FancyPlugin"
+            """
+        ).strip()
+        + "\n"
+    )
+
+    discovered = _discover_local(plugins_dir)
+
+    assert len(discovered) == 1
+    name, plugin = discovered[0]
+    assert name == "fancy"
+    assert plugin.__class__.__name__ == "FancyPlugin"
+
+
 def test_load_plugin_from_target_invalid_target_no_colon(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
