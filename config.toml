@@ -1,9 +1,11 @@
 [[watch]]
 name = "data"
-paths = ["/data"]
-recursive = false
+paths = ["/var/folders/gb/fn5smg8129q365ysq5vzgd740000gn/T/tmp.nxI2iiPQnP"]
 
-[[watch]]
-name = "test"
-paths = ["/test"]
-recursive = false
+[[plugin]]
+name = "transcribe"
+priority = 10
+
+[[plugin]]
+name = "pdf-parser"
+priority = 20
