@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 def execute(effect: Effect) -> None:
     match effect:
         case MoveFile(source=src, destination=dst):
+            if not src.exists():
+                logger.warning(f"Move skipped; source missing: {src} -> {dst}")
+                return
+
             logger.info(f"Moving {src} -> {dst}")
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(src, dst)
