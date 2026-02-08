@@ -69,6 +69,12 @@ from nomnom.events import FileEvent
 class {class_name}:
     """TODO: Describe what this plugin does."""
 
+    def setup(self) -> None:
+        # TODO: (Optional) Interactive setup run after plugin install.
+        # Use this to prompt for API keys, configure paths, etc.
+        # Remove this method if your plugin needs no setup.
+        pass
+
     def matches(self, event: FileEvent) -> bool:
         # TODO: Return True for events this plugin should handle.
         # Examples:
@@ -91,7 +97,7 @@ class {class_name}:
             f"  [dim]{plugin_dir / 'pyproject.toml'}[/]\n"
             f"  [dim]{module_dir / '__init__.py'}[/]\n\n"
             f"Edit [magenta]{class_name}[/] in [cyan]{module_dir / '__init__.py'}[/]\n"
-            f"to define your matches() and handle() logic.\n\n"
+            f"to define your optional setup(), matches(), and handle() logic.\n\n"
             f"Add to your config.toml:\n"
             f'  [dim][[plugins]]\n  name = "{slug}"\n  priority = 50[/]',
             title="nomnom create-plugin",

@@ -9,7 +9,13 @@ from rich.prompt import Prompt, Confirm
 
 from nomnom.config import load_config
 from nomnom.create_plugin import create_plugin
-from nomnom.discovery import discover_plugins, prioritize_plugins
+from nomnom.discovery import (
+    discover_new_plugins,
+    discover_plugins,
+    get_installed_plugin_names,
+    prioritize_plugins,
+)
+from nomnom.plugin import has_setup, run_plugin_setup
 from nomnom.watcher import run_watcher
 
 app = typer.Typer(
@@ -44,6 +50,16 @@ def watch(
     # Suppress watchfiles debug messages unless verbose
     if not verbose:
         logging.getLogger("watchfiles").setLevel(logging.WARNING)
+
+    if not config.exists():
+        setup_cmd = "nomnom setup"
+        if config != Path("config.toml"):
+            setup_cmd += f" --config {config}"
+        console.print(
+            f"[red]Config file not found: {config}[/]\n"
+            f"[yellow]Run `{setup_cmd}` to create one.[/]"
+        )
+        raise typer.Exit(code=1)
 
     cfg = load_config(config)
 
@@ -213,6 +229,81 @@ def setup(
 
     except Exception as e:
         console.print(f"[red]Error saving config: {e}[/]")
+
+@app.command()
+def plugin_install(
+    package: str = typer.Argument(help="Package name or git URL"),
+    no_setup: bool = typer.Option(
+        False,
+        "--no-setup",
+        help="Skip interactive plugin setup",
+    ),
+) -> None:
+    """Install a plugin package."""
+    import subprocess
+    import sys
+
+    typer.echo(f"Installing {package}...")
+    installed_before = get_installed_plugin_names()
+    install_cmd = ["uv", "pip", "install", "--python", sys.executable, package]
+
+    try:
+        result = subprocess.run(
+            install_cmd,
+            capture_output=True,
+            text=True,
+        )
+    except OSError as e:
+        typer.echo(f"Installation failed: could not execute '{install_cmd[0]}': {e}")
+        raise typer.Exit(1)
+
+    if result.returncode != 0:
+        typer.echo("Installation failed:")
+        error_output = result.stderr or result.stdout
+        if error_output:
+            typer.echo(error_output.rstrip())
+        raise typer.Exit(1)
+
+    typer.echo("Plugin installed successfully")
+
+    if no_setup:
+        typer.echo("Skipping plugin setup (--no-setup)")
+        typer.echo("Run 'nomnom watch' to use it")
+        return
+
+    new_plugins = discover_new_plugins(installed_before)
+    if not new_plugins:
+        typer.echo("No new plugins detected after install; skipping setup.")
+        typer.echo("Run 'nomnom watch' to use it")
+        return
+
+    setup_ran = False
+    setup_failed = False
+    for plugin_name, plugin in new_plugins:
+        if not has_setup(plugin):
+            typer.echo(f"Plugin '{plugin_name}' has no setup() method; skipping.")
+            continue
+
+        typer.echo(f"Running setup() for plugin '{plugin_name}'...")
+        try:
+            run_plugin_setup(plugin)
+            setup_ran = True
+            typer.echo(f"Setup completed for plugin '{plugin_name}'.")
+        except KeyboardInterrupt:
+            typer.echo(f"Setup cancelled for plugin '{plugin_name}'.")
+            raise typer.Exit(1)
+        except Exception as e:
+            typer.echo(f"Setup failed for plugin '{plugin_name}': {e}")
+            setup_failed = True
+
+    if not setup_ran:
+        typer.echo("No plugin setup was executed.")
+
+    if setup_failed:
+        typer.echo("One or more plugin setup steps failed.")
+        raise typer.Exit(1)
+
+    typer.echo("Run 'nomnom watch' to use it")
 
 
 if __name__ == "__main__":

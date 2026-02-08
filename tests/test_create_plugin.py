@@ -66,3 +66,5 @@ def test_create_plugin_generates_correct_class_name(
     init_text = init_path.read_text()
 
     assert "class PdfParserPlugin:" in init_text
+    assert "def setup(self) -> None:" in init_text
+    assert "Interactive setup run after plugin install" in init_text

@@ -7,3 +7,13 @@ from nomnom.events import FileEvent
 class Plugin(Protocol):
     def matches(self, event: FileEvent) -> bool: ...
     def handle(self, event: FileEvent) -> list[Effect]: ...
+
+
+def has_setup(plugin: Plugin) -> bool:
+    return callable(getattr(plugin, "setup", None))
+
+
+def run_plugin_setup(plugin: Plugin) -> None:
+    setup_fn = getattr(plugin, "setup", None)
+    if callable(setup_fn):
+        setup_fn()
