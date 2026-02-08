@@ -5,6 +5,8 @@ import pytest
 from nomnom.dispatcher import dispatch
 from nomnom.effects import CreateFile, EmitEvent
 from nomnom.events import EventType
+from nomnom.stats import WatchStats
+from nomnom.stats import WatchStats
 
 
 def test_dispatch_calls_matching_plugin(make_event, stub_plugin_cls) -> None:
@@ -167,3 +169,95 @@ def test_dispatch_processes_plugins_in_order(make_event) -> None:
     )
 
     assert order == ["first", "second"]
+
+
+def test_dispatch_dry_run_skips_executor(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    make_event,
+    stub_plugin_cls,
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+    called = False
+
+    def fake_execute(_effect_obj) -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
+    caplog.set_level("INFO")
+
+    dispatch(event, [("stub", plugin)], dry_run=True)
+
+    assert called is False
+    assert "[DRY RUN]" in caplog.text
+
+
+def test_dispatch_dry_run_recurses_emit_event(
+    monkeypatch: pytest.MonkeyPatch,
+    make_event,
+    stub_plugin_cls,
+) -> None:
+    first = make_event(path=Path("/tmp/first.txt"))
+    second = make_event(event_type=EventType.MODIFIED, path=Path("/tmp/second.txt"))
+
+    plugin = stub_plugin_cls(matches_result=True, effects=[EmitEvent(event=second)])
+    called = False
+
+    def fake_execute(_effect_obj) -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
+
+    dispatch(first, [("stub", plugin)], max_depth=3, dry_run=True)
+
+    assert plugin.handled_events == [first, second, second]
+    assert called is False
+
+
+def test_dispatch_records_stats_for_matches_and_effects(
+    monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+    stats = WatchStats()
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: True)
+
+    dispatch(event, [("stub", plugin)], stats=stats)
+
+    assert stats.events_processed == 1
+    assert stats.plugin_match_counts == {"stub": 1}
+    assert stats.effects_applied == 1
+
+
+def test_dispatch_records_stats_for_emitted_events(
+    make_event, stub_plugin_cls
+) -> None:
+    first = make_event(path=Path("/tmp/first.txt"))
+    second = make_event(event_type=EventType.MODIFIED, path=Path("/tmp/second.txt"))
+    plugin = stub_plugin_cls(matches_result=True, effects=[EmitEvent(event=second)])
+    stats = WatchStats()
+
+    dispatch(first, [("stub", plugin)], stats=stats, max_depth=3)
+
+    assert stats.events_processed == 3
+
+
+def test_dispatch_does_not_count_noop_effects_as_applied(
+    monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+    stats = WatchStats()
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: False)
+
+    dispatch(event, [("stub", plugin)], stats=stats)
+
+    assert stats.effects_applied == 0

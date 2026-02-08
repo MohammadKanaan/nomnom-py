@@ -10,6 +10,7 @@ from nomnom.config import Config
 from nomnom.dispatcher import dispatch
 from nomnom.events import EventType, FileEvent
 from nomnom.plugin import Plugin
+from nomnom.stats import WatchStats
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -159,6 +160,8 @@ def run_watcher(
                     f"[dim]{watch_group}[/]"
                 )
 
-                dispatch(event, plugins)
+                dispatch(event, plugins, dry_run=dry_run, stats=stats)
     except KeyboardInterrupt:
-        return
+        pass
+    finally:
+        stats.print_summary(console)
