@@ -7,3 +7,5 @@ name = "transcribe"
 paths = [
     "/Users/user/Documents/audio",
 ]
+# include = ["*.wav", "*.mp3"]
+# exclude = ["*.tmp", "~*"]

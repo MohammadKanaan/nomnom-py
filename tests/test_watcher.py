@@ -1,10 +1,17 @@
 from pathlib import Path
 
+import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
 from nomnom.events import EventType
-from nomnom.watcher import CHANGE_MAP, _build_group_index, _coalesce_changes, _resolve_group
+from nomnom.watcher import (
+    CHANGE_MAP,
+    _build_group_index,
+    _coalesce_changes,
+    _matches_filters,
+    _resolve_group,
+)
 
 
 def test_build_group_index_creates_entries(tmp_path: Path) -> None:
@@ -103,3 +110,62 @@ def test_coalesce_prefers_added_over_modified_for_same_path(tmp_path: Path) -> N
     )
 
     assert result == [(Change.added, str(path))]
+
+
+def test_matches_filters_include_allows_and_blocks() -> None:
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[Path(".")], include=["*.txt"]),
+        ]
+    )
+
+    assert _matches_filters(Path("note.txt"), cfg, "inbox") is True
+    assert _matches_filters(Path("note.md"), cfg, "inbox") is False
+
+
+def test_matches_filters_exclude_blocks() -> None:
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[Path(".")], exclude=["*.tmp"]),
+        ]
+    )
+
+    assert _matches_filters(Path("note.txt"), cfg, "inbox") is True
+    assert _matches_filters(Path("note.tmp"), cfg, "inbox") is False
+
+
+def test_matches_filters_combined() -> None:
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(
+                name="inbox",
+                paths=[Path(".")],
+                include=["*.txt", "*.md"],
+                exclude=["secret.*"],
+            ),
+        ]
+    )
+
+    assert _matches_filters(Path("file.txt"), cfg, "inbox") is True
+    assert _matches_filters(Path("secret.txt"), cfg, "inbox") is False
+    assert _matches_filters(Path("image.png"), cfg, "inbox") is False
+
+
+def test_matches_filters_no_patterns_allows_all() -> None:
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[Path(".")]),
+        ]
+    )
+
+    assert _matches_filters(Path("anything.any"), cfg, "inbox") is True
+
+
+def test_matches_filters_unknown_group_allows_all() -> None:
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[Path(".")], include=["*.txt"]),
+        ]
+    )
+
+    assert _matches_filters(Path("file.md"), cfg, "unknown") is True
