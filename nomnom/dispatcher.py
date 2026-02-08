@@ -25,15 +25,15 @@ def dispatch(
     max_depth: int = DEFAULT_MAX_DEPTH,
     dry_run: bool = False,
 ) -> None:
-    if stats is not None:
-        stats.record_event()
-
     if depth >= max_depth:
         logger.warning(
             f"Max event depth ({max_depth}) reached, dropping event: "
             f"{event.event_type.value} {event.path}"
         )
         return
+
+    if stats is not None:
+        stats.record_event()
 
     for name, plugin in plugins:
         try:
