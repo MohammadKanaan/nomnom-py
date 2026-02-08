@@ -38,7 +38,7 @@ paths = ["./inbox"]
 
     monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
 
-    result = runner.invoke(app, ["watch", "--config", str(config_path), "--dry-run"])
+    result = runner.invoke(app, ["watch", "--config", str(config_path), "--dry"])
 
     assert result.exit_code == 0
     assert captured_kwargs.get("dry_run") is True

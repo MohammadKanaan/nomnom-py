@@ -43,7 +43,7 @@ def watch(
     ),
     dry_run: bool = typer.Option(
         False,
-        "--dry-run",
+        "--dry",
         help="Show effects without executing",
     ),
 ) -> None:
