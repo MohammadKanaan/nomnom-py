@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -89,6 +90,20 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
     return sorted(coalesced, key=_change_sort_key)
 
 
+def _matches_filters(path: Path, cfg: Config, group_name: str) -> bool:
+    group = next((g for g in cfg.watch_groups if g.name == group_name), None)
+    if group is None:
+        return True
+
+    if group.include and not any(fnmatch(path.name, pattern) for pattern in group.include):
+        return False
+
+    if group.exclude and any(fnmatch(path.name, pattern) for pattern in group.exclude):
+        return False
+
+    return True
+
+
 def run_watcher(
     cfg: Config,
     plugins: list[tuple[str, Plugin]],
@@ -123,6 +138,8 @@ def run_watcher(
                 path = Path(changed)
                 watch_group = _resolve_group(path, group_index)
                 if watch_group is None:
+                    continue
+                if not _matches_filters(path, cfg, watch_group):
                     continue
 
                 event = FileEvent(
