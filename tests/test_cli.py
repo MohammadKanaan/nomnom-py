@@ -17,6 +17,33 @@ def test_watch_prompts_setup_when_default_config_missing() -> None:
     assert "Run `nomnom setup` to create one." in result.output
 
 
+def test_watch_dry_run_passes_flag(monkeypatch, tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    captured_kwargs = {}
+    runner = CliRunner()
+
+    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+
+    def fake_run_watcher(cfg, plugins, console, **kwargs):
+        captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+
+    result = runner.invoke(app, ["watch", "--config", str(config_path), "--dry-run"])
+
+    assert result.exit_code == 0
+    assert captured_kwargs.get("dry_run") is True
+
+
 def test_plugin_install_runs_setup_for_new_plugin(
     monkeypatch,
 ) -> None:

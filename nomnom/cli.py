@@ -41,6 +41,11 @@ def watch(
         "-v",
         help="Enable verbose logging",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Show effects without executing",
+    ),
 ) -> None:
     """Watch configured folders and dispatch events to plugins."""
     logging.basicConfig(
@@ -69,7 +74,8 @@ def watch(
     # Banner
     banner = Panel(
         "[bold cyan]nomnom[/] v0.1.0\n"
-        f"[dim]Config: {config}[/]",
+        f"[dim]Config: {config}[/]"
+        + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",
     )
     console.print(banner)
@@ -92,9 +98,12 @@ def watch(
         watch_table.add_row(wg.name, ", ".join(str(p) for p in wg.paths))
     console.print(watch_table)
 
-    console.print("\n[dim]Watching for changes... (Ctrl+C to stop)[/]\n")
+    if dry_run:
+        console.print("\n[dim]Dry-run mode: showing effects without executing...[/]\n")
+    else:
+        console.print("\n[dim]Watching for changes... (Ctrl+C to stop)[/]\n")
 
-    run_watcher(cfg, plugins, console)
+    run_watcher(cfg, plugins, console, dry_run=dry_run)
 
 
 @app.command()
