@@ -1,3 +1,4 @@
+import importlib
 import importlib.util
 import logging
 import sys
@@ -29,6 +30,16 @@ def discover_plugins() -> list[tuple[str, Plugin]]:
         merged[name] = plugin
 
     return list(merged.items())
+
+
+def get_installed_plugin_names() -> set[str]:
+    return {ep.name for ep in entry_points(group=ENTRY_POINT_GROUP)}
+
+
+def discover_new_plugins(known_names: set[str]) -> list[tuple[str, Plugin]]:
+    importlib.invalidate_caches()
+    installed = _discover_installed()
+    return [(name, plugin) for name, plugin in installed if name not in known_names]
 
 
 def _discover_installed() -> list[tuple[str, Plugin]]:

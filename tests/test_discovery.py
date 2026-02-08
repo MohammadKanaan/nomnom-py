@@ -3,8 +3,15 @@ from pathlib import Path
 
 import pytest
 
+import nomnom.discovery as discovery_module
 from nomnom.config import Config, PluginConfig, WatchGroup
-from nomnom.discovery import _discover_local, _load_plugin_from_target, prioritize_plugins
+from nomnom.discovery import (
+    _discover_local,
+    _load_plugin_from_target,
+    discover_new_plugins,
+    get_installed_plugin_names,
+    prioritize_plugins,
+)
 
 
 def test_load_plugin_from_target_rejects_absolute_module_path(
@@ -197,3 +204,42 @@ def test_prioritize_plugins_default_priority() -> None:
     prioritized = prioritize_plugins(plugins, config)
 
     assert [name for name, _ in prioritized] == ["configured", "defaulted"]
+
+
+def test_get_installed_plugin_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeEntryPoint:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+    monkeypatch.setattr(
+        discovery_module,
+        "entry_points",
+        lambda group: [FakeEntryPoint("alpha"), FakeEntryPoint("beta")],
+    )
+
+    assert get_installed_plugin_names() == {"alpha", "beta"}
+
+
+def test_discover_new_plugins_filters_known_plugins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invalidate_calls: list[bool] = []
+
+    monkeypatch.setattr(
+        discovery_module.importlib,
+        "invalidate_caches",
+        lambda: invalidate_calls.append(True),
+    )
+
+    existing_plugin = object()
+    new_plugin = object()
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_installed",
+        lambda: [("existing", existing_plugin), ("fresh", new_plugin)],
+    )
+
+    discovered = discover_new_plugins({"existing"})
+
+    assert invalidate_calls == [True]
+    assert discovered == [("fresh", new_plugin)]
