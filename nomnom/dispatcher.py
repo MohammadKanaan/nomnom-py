@@ -25,6 +25,8 @@ def dispatch(
             f"{event.event_type.value} {event.path}"
         )
         return
+    if stats is not None:
+        stats.record_event()
 
     for name, plugin in plugins:
         try:
@@ -55,8 +57,8 @@ def dispatch(
                 )
             else:
                 try:
-                    executor.execute(effect)
-                    if stats is not None:
+                    applied = executor.execute(effect)
+                    if stats is not None and applied:
                         stats.record_effect()
                 except Exception:
                     logger.exception(

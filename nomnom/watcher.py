@@ -125,7 +125,6 @@ def run_watcher(cfg: Config, plugins: list[tuple[str, Plugin]], console: "Consol
                     watch_group=watch_group,
                     created_at=datetime.now(),
                 )
-                stats.record_event()
 
                 # Color-coded event display
                 color, symbol = EVENT_STYLES[event_type]
