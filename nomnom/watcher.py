@@ -89,7 +89,13 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
     return sorted(coalesced, key=_change_sort_key)
 
 
-def run_watcher(cfg: Config, plugins: list[tuple[str, Plugin]], console: "Console") -> None:
+def run_watcher(
+    cfg: Config,
+    plugins: list[tuple[str, Plugin]],
+    console: "Console",
+    *,
+    dry_run: bool = False,
+) -> None:
     stats = WatchStats()
     all_paths = [path.resolve() for group in cfg.watch_groups for path in group.paths]
 
@@ -137,7 +143,7 @@ def run_watcher(cfg: Config, plugins: list[tuple[str, Plugin]], console: "Consol
                     f"[dim]{watch_group}[/]"
                 )
 
-                dispatch(event, plugins, stats=stats)
+                dispatch(event, plugins, dry_run=dry_run, stats=stats)
     except KeyboardInterrupt:
         pass
     finally:
