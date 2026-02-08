@@ -17,19 +17,23 @@ ENTRY_POINT_GROUP = "nomnom.plugins"
 
 
 def discover_plugins() -> list[tuple[str, Plugin]]:
+    return [(name, plugin) for name, plugin, _ in discover_plugins_with_source()]
+
+
+def discover_plugins_with_source() -> list[tuple[str, Plugin, str]]:
     installed = _discover_installed()
     local = _discover_local()
 
     # local plugins override installed ones with the same name
-    merged: dict[str, Plugin] = {}
+    merged: dict[str, tuple[Plugin, str]] = {}
     for name, plugin in installed:
-        merged[name] = plugin
+        merged[name] = (plugin, "installed")
     for name, plugin in local:
         if name in merged:
             logger.info(f"Local plugin '{name}' overrides installed version")
-        merged[name] = plugin
+        merged[name] = (plugin, "local")
 
-    return list(merged.items())
+    return [(name, plugin, source) for name, (plugin, source) in merged.items()]
 
 
 def get_installed_plugin_names() -> set[str]:

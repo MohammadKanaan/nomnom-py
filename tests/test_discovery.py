@@ -9,6 +9,7 @@ from nomnom.discovery import (
     _discover_local,
     _load_plugin_from_target,
     discover_new_plugins,
+    discover_plugins_with_source,
     get_installed_plugin_names,
     prioritize_plugins,
 )
@@ -243,3 +244,50 @@ def test_discover_new_plugins_filters_known_plugins(
 
     assert invalidate_calls == [True]
     assert discovered == [("fresh", new_plugin)]
+
+
+def test_discover_plugins_with_source_returns_source_info(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    installed_plugin = object()
+    local_plugin = object()
+
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_installed",
+        lambda: [("alpha", installed_plugin)],
+    )
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_local",
+        lambda: [("beta", local_plugin)],
+    )
+
+    discovered = discover_plugins_with_source()
+
+    assert discovered == [
+        ("alpha", installed_plugin, "installed"),
+        ("beta", local_plugin, "local"),
+    ]
+
+
+def test_discover_plugins_with_source_local_overrides_installed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    installed_plugin = object()
+    local_plugin = object()
+
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_installed",
+        lambda: [("shared", installed_plugin)],
+    )
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_local",
+        lambda: [("shared", local_plugin)],
+    )
+
+    discovered = discover_plugins_with_source()
+
+    assert discovered == [("shared", local_plugin, "local")]

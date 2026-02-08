@@ -102,6 +102,76 @@ paths = ["./inbox"]
     assert captured_kwargs.get("dry_run") is True
 
 
+def test_plugins_command_with_discovered_plugins(monkeypatch) -> None:
+    class PluginWithSetup:
+        def setup(self) -> None:
+            pass
+
+    class PluginWithoutSetup:
+        pass
+
+    runner = CliRunner()
+    monkeypatch.setattr(
+        cli_module,
+        "discover_plugins_with_source",
+        lambda: [
+            ("alpha", PluginWithSetup(), "installed"),
+            ("beta", PluginWithoutSetup(), "local"),
+        ],
+    )
+
+    result = runner.invoke(app, ["plugins"])
+
+    assert result.exit_code == 0
+    assert "alpha" in result.output
+    assert "beta" in result.output
+    assert "installed" in result.output
+    assert "local" in result.output
+
+
+def test_plugins_command_with_no_plugins(monkeypatch) -> None:
+    runner = CliRunner()
+    monkeypatch.setattr(cli_module, "discover_plugins_with_source", lambda: [])
+
+    result = runner.invoke(app, ["plugins"])
+
+    assert result.exit_code == 0
+    assert "No plugins discovered." in result.output
+
+
+def test_plugins_command_with_config_priority(monkeypatch, tmp_path) -> None:
+    class PluginWithSetup:
+        def setup(self) -> None:
+            pass
+
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+
+[[plugins]]
+name = "alpha"
+priority = 7
+""".strip()
+        + "\n"
+    )
+
+    runner = CliRunner()
+    monkeypatch.setattr(
+        cli_module,
+        "discover_plugins_with_source",
+        lambda: [("alpha", PluginWithSetup(), "installed")],
+    )
+
+    result = runner.invoke(app, ["plugins", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert "Priority" in result.output
+    assert "7" in result.output
+
+
 def test_plugin_install_runs_setup_for_new_plugin(
     monkeypatch,
 ) -> None:

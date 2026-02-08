@@ -12,6 +12,7 @@ from nomnom.create_plugin import create_plugin
 from nomnom.discovery import (
     discover_new_plugins,
     discover_plugins,
+    discover_plugins_with_source,
     get_installed_plugin_names,
     prioritize_plugins,
 )
@@ -271,6 +272,46 @@ def setup(
 
     except Exception as e:
         console.print(f"[red]Error saving config: {e}[/]")
+
+
+@app.command()
+def plugins(
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+) -> None:
+    """List discovered plugins with source and setup support."""
+    discovered = discover_plugins_with_source()
+    if not discovered:
+        console.print("No plugins discovered.")
+        return
+
+    priority_map: dict[str, int] = {}
+    if config.exists():
+        try:
+            cfg = load_config(config)
+            priority_map = {p.name: p.priority for p in cfg.plugins}
+        except Exception:
+            priority_map = {}
+
+    table = Table(title=f"Plugins ({len(discovered)})")
+    table.add_column("Name", style="magenta")
+    table.add_column("Source", style="cyan")
+    table.add_column("Setup", style="green")
+    if priority_map:
+        table.add_column("Priority", justify="right", style="dim")
+
+    for name, plugin, source in discovered:
+        setup_value = "yes" if has_setup(plugin) else "no"
+        if priority_map:
+            table.add_row(name, source, setup_value, str(priority_map.get(name, 50)))
+        else:
+            table.add_row(name, source, setup_value)
+
+    console.print(table)
 
 @app.command()
 def plugin_install(
