@@ -20,10 +20,10 @@ def dispatch(
     event: FileEvent,
     plugins: list[tuple[str, Plugin]],
     *,
+    stats: WatchStats | None = None,
     depth: int = 0,
     max_depth: int = DEFAULT_MAX_DEPTH,
     dry_run: bool = False,
-    stats: WatchStats | None = None,
 ) -> None:
     if stats is not None:
         stats.record_event()
@@ -58,10 +58,10 @@ def dispatch(
                 dispatch(
                     effect.event,
                     plugins,
+                    stats=stats,
                     depth=depth + 1,
                     max_depth=max_depth,
                     dry_run=dry_run,
-                    stats=stats,
                 )
             else:
                 if dry_run:
@@ -73,8 +73,8 @@ def dispatch(
                     continue
 
                 try:
-                    executor.execute(effect)
-                    if stats is not None:
+                    applied = executor.execute(effect)
+                    if stats is not None and applied:
                         stats.record_effect()
                 except Exception:
                     logger.exception(
