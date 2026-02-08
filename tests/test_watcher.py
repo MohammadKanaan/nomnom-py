@@ -1,10 +1,11 @@
 from pathlib import Path
 
+import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
 from nomnom.events import EventType
-from nomnom.watcher import CHANGE_MAP, _build_group_index, _coalesce_changes, _resolve_group
+from nomnom.watcher import CHANGE_MAP, _build_group_index, _coalesce_changes, _resolve_group, run_watcher
 
 
 def test_build_group_index_creates_entries(tmp_path: Path) -> None:
@@ -103,3 +104,31 @@ def test_coalesce_prefers_added_over_modified_for_same_path(tmp_path: Path) -> N
     )
 
     assert result == [(Change.added, str(path))]
+
+
+def test_run_watcher_prints_summary_on_keyboard_interrupt(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "inbox"
+    watch_path.mkdir()
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+
+    class StubConsole:
+        def __init__(self) -> None:
+            self.calls: list[object] = []
+
+        def print(self, value) -> None:
+            self.calls.append(value)
+
+    def interrupted_watch(*_args):
+        raise KeyboardInterrupt
+        yield  # pragma: no cover
+
+    console = StubConsole()
+
+    monkeypatch.setattr("nomnom.watcher.watch", interrupted_watch)
+
+    run_watcher(cfg, [], console)
+
+    assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
