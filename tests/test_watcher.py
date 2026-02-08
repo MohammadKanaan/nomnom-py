@@ -1,16 +1,19 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
 from nomnom.events import EventType
+from nomnom.stats import WatchStats
 from nomnom.watcher import (
     CHANGE_MAP,
     _build_group_index,
     _coalesce_changes,
     _matches_filters,
     _resolve_group,
+    _scan_existing_files,
 )
 
 
@@ -169,3 +172,72 @@ def test_matches_filters_unknown_group_allows_all() -> None:
     )
 
     assert _matches_filters(Path("file.md"), cfg, "unknown") is True
+
+
+def test_scan_existing_files_creates_events(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    watch_path = tmp_path / "watch"
+    watch_path.mkdir()
+    (watch_path / "a.txt").write_text("a")
+    (watch_path / "b.md").write_text("b")
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])])
+    group_index = _build_group_index(cfg)
+    dispatched: list[object] = []
+
+    def fake_dispatch(event, plugins, **kwargs) -> None:
+        dispatched.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    _scan_existing_files(
+        watch_paths=[watch_path.resolve()],
+        group_index=group_index,
+        cfg=cfg,
+        plugins=[],
+        console=SimpleNamespace(print=lambda *_args, **_kwargs: None),
+        dry_run=False,
+        stats=WatchStats(),
+    )
+
+    assert len(dispatched) == 2
+    assert {event.event_type for event in dispatched} == {EventType.CREATED}
+
+
+def test_scan_existing_files_respects_filters(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "watch"
+    watch_path.mkdir()
+    (watch_path / "a.txt").write_text("a")
+    (watch_path / "b.tmp").write_text("b")
+    (watch_path / "c.md").write_text("c")
+
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(
+                name="inbox",
+                paths=[watch_path],
+                include=["*.txt", "*.tmp"],
+                exclude=["*.tmp"],
+            )
+        ]
+    )
+    group_index = _build_group_index(cfg)
+    dispatched: list[object] = []
+
+    def fake_dispatch(event, plugins, **kwargs) -> None:
+        dispatched.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    _scan_existing_files(
+        watch_paths=[watch_path.resolve()],
+        group_index=group_index,
+        cfg=cfg,
+        plugins=[],
+        console=SimpleNamespace(print=lambda *_args, **_kwargs: None),
+        dry_run=True,
+        stats=WatchStats(),
+    )
+
+    assert [event.path.name for event in dispatched] == ["a.txt"]

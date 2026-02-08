@@ -46,6 +46,11 @@ def watch(
         "--dry-run",
         help="Show effects without executing",
     ),
+    once: bool = typer.Option(
+        False,
+        "--once",
+        help="Process existing files once and exit",
+    ),
 ) -> None:
     """Watch configured folders and dispatch events to plugins."""
     logging.basicConfig(
@@ -108,12 +113,14 @@ def watch(
         )
     console.print(watch_table)
 
-    if dry_run:
+    if once:
+        console.print("\n[dim]One-shot mode: scanning existing files...[/]\n")
+    elif dry_run:
         console.print("\n[dim]Dry-run mode: showing effects without executing...[/]\n")
     else:
         console.print("\n[dim]Watching for changes... (Ctrl+C to stop)[/]\n")
 
-    run_watcher(cfg, plugins, console, dry_run=dry_run)
+    run_watcher(cfg, plugins, console, dry_run=dry_run, once=once)
 
 
 @app.command()

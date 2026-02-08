@@ -44,6 +44,64 @@ paths = ["./inbox"]
     assert captured_kwargs.get("dry_run") is True
 
 
+def test_watch_once_passes_flag(monkeypatch, tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    captured_kwargs = {}
+    runner = CliRunner()
+
+    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+
+    def fake_run_watcher(cfg, plugins, console, **kwargs):
+        captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+
+    result = runner.invoke(app, ["watch", "--config", str(config_path), "--once"])
+
+    assert result.exit_code == 0
+    assert captured_kwargs.get("once") is True
+
+
+def test_watch_once_and_dry_run_combined(monkeypatch, tmp_path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    captured_kwargs = {}
+    runner = CliRunner()
+
+    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+
+    def fake_run_watcher(cfg, plugins, console, **kwargs):
+        captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+
+    result = runner.invoke(
+        app,
+        ["watch", "--config", str(config_path), "--once", "--dry-run"],
+    )
+
+    assert result.exit_code == 0
+    assert captured_kwargs.get("once") is True
+    assert captured_kwargs.get("dry_run") is True
+
+
 def test_plugin_install_runs_setup_for_new_plugin(
     monkeypatch,
 ) -> None:

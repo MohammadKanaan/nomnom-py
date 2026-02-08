@@ -104,12 +104,50 @@ def _matches_filters(path: Path, cfg: Config, group_name: str) -> bool:
     return True
 
 
+def _scan_existing_files(
+    watch_paths: list[Path],
+    group_index: list[GroupIndexEntry],
+    cfg: Config,
+    plugins: list[tuple[str, Plugin]],
+    console: "Console",
+    dry_run: bool,
+    stats: WatchStats,
+) -> None:
+    for watch_path in watch_paths:
+        for path in sorted(p for p in watch_path.rglob("*") if p.is_file()):
+            watch_group = _resolve_group(path, group_index)
+            if watch_group is None:
+                continue
+            if not _matches_filters(path, cfg, watch_group):
+                continue
+
+            event = FileEvent(
+                event_type=EventType.CREATED,
+                path=path,
+                watch_group=watch_group,
+                created_at=datetime.now(),
+            )
+
+            color, symbol = EVENT_STYLES[EventType.CREATED]
+            timestamp = event.created_at.strftime("%H:%M:%S")
+            console.print(
+                f"[dim]{timestamp}[/] "
+                f"[{color}]{symbol}[/] "
+                f"[{color}]{event.event_type.value.upper()}[/]  "
+                f"{path.name}  "
+                f"[dim]{watch_group}[/]"
+            )
+
+            dispatch(event, plugins, dry_run=dry_run, stats=stats)
+
+
 def run_watcher(
     cfg: Config,
     plugins: list[tuple[str, Plugin]],
     console: "Console",
     *,
     dry_run: bool = False,
+    once: bool = False,
 ) -> None:
     stats = WatchStats()
     all_paths = [path.resolve() for group in cfg.watch_groups for path in group.paths]
@@ -127,6 +165,19 @@ def run_watcher(
         return
 
     group_index = _build_group_index(cfg)
+
+    if once:
+        _scan_existing_files(
+            watch_paths,
+            group_index,
+            cfg,
+            plugins,
+            console,
+            dry_run,
+            stats,
+        )
+        stats.print_summary(console)
+        return
 
     try:
         for raw_changes in watch(*watch_paths):
