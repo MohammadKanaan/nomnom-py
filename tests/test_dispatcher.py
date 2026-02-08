@@ -5,6 +5,7 @@ import pytest
 from nomnom.dispatcher import dispatch
 from nomnom.effects import CreateFile, EmitEvent
 from nomnom.events import EventType
+from nomnom.stats import WatchStats
 
 
 def test_dispatch_calls_matching_plugin(make_event, stub_plugin_cls) -> None:
@@ -167,3 +168,19 @@ def test_dispatch_processes_plugins_in_order(make_event) -> None:
     )
 
     assert order == ["first", "second"]
+
+
+def test_dispatch_records_stats_for_matches_and_effects(
+    monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+    stats = WatchStats()
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: None)
+
+    dispatch(event, [("stub", plugin)], stats=stats)
+
+    assert stats.plugin_match_counts == {"stub": 1}
+    assert stats.effects_applied == 1

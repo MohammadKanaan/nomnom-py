@@ -9,6 +9,7 @@ from nomnom.config import Config
 from nomnom.dispatcher import dispatch
 from nomnom.events import EventType, FileEvent
 from nomnom.plugin import Plugin
+from nomnom.stats import WatchStats
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -89,6 +90,7 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
 
 
 def run_watcher(cfg: Config, plugins: list[tuple[str, Plugin]], console: "Console") -> None:
+    stats = WatchStats()
     all_paths = [path.resolve() for group in cfg.watch_groups for path in group.paths]
 
     # Filter out non-existent paths
@@ -123,6 +125,7 @@ def run_watcher(cfg: Config, plugins: list[tuple[str, Plugin]], console: "Consol
                     watch_group=watch_group,
                     created_at=datetime.now(),
                 )
+                stats.record_event()
 
                 # Color-coded event display
                 color, symbol = EVENT_STYLES[event_type]
@@ -135,6 +138,8 @@ def run_watcher(cfg: Config, plugins: list[tuple[str, Plugin]], console: "Consol
                     f"[dim]{watch_group}[/]"
                 )
 
-                dispatch(event, plugins)
+                dispatch(event, plugins, stats=stats)
     except KeyboardInterrupt:
-        return
+        pass
+    finally:
+        stats.print_summary(console)
