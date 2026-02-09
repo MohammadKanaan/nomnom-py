@@ -27,6 +27,34 @@ console = Console()
 app.command("create-plugin")(create_plugin)
 
 
+def _run_setups_for_plugins(plugins: list[tuple[str, object]]) -> None:
+    setup_ran = False
+    setup_failed = False
+    for plugin_name, plugin in plugins:
+        if not has_setup(plugin):
+            typer.echo(f"Plugin '{plugin_name}' has no setup() method; skipping.")
+            continue
+
+        typer.echo(f"Running setup() for plugin '{plugin_name}'...")
+        try:
+            run_plugin_setup(plugin)
+            setup_ran = True
+            typer.echo(f"Setup completed for plugin '{plugin_name}'.")
+        except KeyboardInterrupt:
+            typer.echo(f"Setup cancelled for plugin '{plugin_name}'.")
+            raise typer.Exit(1)
+        except Exception as e:
+            typer.echo(f"Setup failed for plugin '{plugin_name}': {e}")
+            setup_failed = True
+
+    if not setup_ran:
+        typer.echo("No plugin setup was executed.")
+
+    if setup_failed:
+        typer.echo("One or more plugin setup steps failed.")
+        raise typer.Exit(1)
+
+
 @app.command()
 def watch(
     config: Path = typer.Option(
@@ -286,33 +314,43 @@ def plugin_install(
         typer.echo("Run 'nomnom watch' to use it")
         return
 
-    setup_ran = False
-    setup_failed = False
-    for plugin_name, plugin in new_plugins:
-        if not has_setup(plugin):
-            typer.echo(f"Plugin '{plugin_name}' has no setup() method; skipping.")
-            continue
-
-        typer.echo(f"Running setup() for plugin '{plugin_name}'...")
-        try:
-            run_plugin_setup(plugin)
-            setup_ran = True
-            typer.echo(f"Setup completed for plugin '{plugin_name}'.")
-        except KeyboardInterrupt:
-            typer.echo(f"Setup cancelled for plugin '{plugin_name}'.")
-            raise typer.Exit(1)
-        except Exception as e:
-            typer.echo(f"Setup failed for plugin '{plugin_name}': {e}")
-            setup_failed = True
-
-    if not setup_ran:
-        typer.echo("No plugin setup was executed.")
-
-    if setup_failed:
-        typer.echo("One or more plugin setup steps failed.")
-        raise typer.Exit(1)
+    _run_setups_for_plugins(new_plugins)
 
     typer.echo("Run 'nomnom watch' to use it")
+
+
+@app.command("plugin-setup")
+def plugin_setup(
+    name: str | None = typer.Argument(
+        None,
+        help="Plugin name to run setup for",
+    ),
+    all_plugins: bool = typer.Option(
+        False,
+        "--all",
+        help="Run setup for all discovered plugins",
+    ),
+) -> None:
+    """Run setup() for one plugin or all discovered plugins."""
+    if name and all_plugins:
+        typer.echo("Choose either a plugin name or --all, not both.")
+        raise typer.Exit(1)
+
+    if name is None and not all_plugins:
+        typer.echo("Provide a plugin name or pass --all.")
+        raise typer.Exit(1)
+
+    discovered = discover_plugins()
+    if all_plugins:
+        _run_setups_for_plugins(discovered)
+        return
+
+    selected_plugins = [(plugin_name, p) for plugin_name, p in discovered if plugin_name == name]
+    if not selected_plugins:
+        typer.echo(f"Plugin '{name}' was not found.")
+        raise typer.Exit(1)
+
+    _run_setups_for_plugins(selected_plugins)
 
 
 if __name__ == "__main__":
