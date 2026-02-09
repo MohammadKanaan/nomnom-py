@@ -147,7 +147,12 @@ def setup(
         try:
             cfg = load_config(config)
             existing_watch_groups = [
-                {"name": wg.name, "paths": [str(p) for p in wg.paths]}
+                {
+                    "name": wg.name,
+                    "paths": [str(p) for p in wg.paths],
+                    "include": wg.include,
+                    "exclude": wg.exclude,
+                }
                 for wg in cfg.watch_groups
             ]
             existing_plugins = [
