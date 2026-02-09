@@ -216,3 +216,92 @@ def test_plugin_install_handles_missing_uv(monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "Installation failed: could not execute 'uv'" in result.output
+
+
+def test_plugin_setup_runs_named_plugin_setup(monkeypatch) -> None:
+    class PluginWithSetup:
+        def __init__(self) -> None:
+            self.setup_called = False
+
+        def setup(self) -> None:
+            self.setup_called = True
+
+    fresh = PluginWithSetup()
+    runner = CliRunner()
+
+    monkeypatch.setattr(
+        cli_module,
+        "discover_plugins",
+        lambda: [("fresh", fresh), ("other", object())],
+    )
+
+    result = runner.invoke(app, ["plugin-setup", "fresh"])
+
+    assert result.exit_code == 0
+    assert fresh.setup_called is True
+    assert "Running setup() for plugin 'fresh'..." in result.output
+    assert "Setup completed for plugin 'fresh'." in result.output
+
+
+def test_plugin_setup_supports_all_flag(monkeypatch) -> None:
+    class PluginWithSetup:
+        def __init__(self) -> None:
+            self.setup_called = False
+
+        def setup(self) -> None:
+            self.setup_called = True
+
+    alpha = PluginWithSetup()
+    beta = PluginWithSetup()
+    runner = CliRunner()
+
+    monkeypatch.setattr(
+        cli_module,
+        "discover_plugins",
+        lambda: [("alpha", alpha), ("beta", beta)],
+    )
+
+    result = runner.invoke(app, ["plugin-setup", "--all"])
+
+    assert result.exit_code == 0
+    assert alpha.setup_called is True
+    assert beta.setup_called is True
+    assert "Running setup() for plugin 'alpha'..." in result.output
+    assert "Running setup() for plugin 'beta'..." in result.output
+
+
+def test_plugin_setup_errors_when_plugin_is_missing(monkeypatch) -> None:
+    runner = CliRunner()
+
+    monkeypatch.setattr(
+        cli_module,
+        "discover_plugins",
+        lambda: [("alpha", object())],
+    )
+
+    result = runner.invoke(app, ["plugin-setup", "fresh"])
+
+    assert result.exit_code == 1
+    assert "Plugin 'fresh' was not found." in result.output
+
+
+def test_plugin_setup_requires_name_or_all(monkeypatch) -> None:
+    runner = CliRunner()
+
+    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+
+    result = runner.invoke(app, ["plugin-setup"])
+
+    assert result.exit_code == 1
+    assert "Provide a plugin name or pass --all." in result.output
+
+
+def test_plugin_setup_rejects_name_with_all(monkeypatch) -> None:
+    runner = CliRunner()
+
+    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+
+    result = runner.invoke(app, ["plugin-setup", "fresh", "--all"])
+
+    assert result.exit_code == 1
+    assert "Choose either a plugin name or --all, not both." in result.output
