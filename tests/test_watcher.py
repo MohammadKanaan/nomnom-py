@@ -29,7 +29,7 @@ def test_build_group_index_creates_entries(tmp_path: Path) -> None:
     )
 
     index = _build_group_index(config)
-    pairs = {(path, name) for path, name in index}
+    pairs = {(path, group.name) for path, group in index}
 
     assert (first.resolve(), "inbox") in pairs
     assert (second.resolve(), "inbox") in pairs
@@ -48,26 +48,28 @@ def test_build_group_index_sorts_longest_first(tmp_path: Path) -> None:
 
     index = _build_group_index(config)
 
-    assert index[0] == (deep.resolve(), "deep")
-    assert index[1] == (shallow.resolve(), "shallow")
+    assert index[0] == (deep.resolve(), config.watch_groups[1])
+    assert index[1] == (shallow.resolve(), config.watch_groups[0])
 
 
 def test_resolve_group_matches_nested_path(tmp_path: Path) -> None:
     root = tmp_path / "inbox"
     deep = root / "nested"
     index = [
-        (deep.resolve(), "deep"),
-        (root.resolve(), "inbox"),
+        (deep.resolve(), WatchGroup(name="deep", paths=[deep])),
+        (root.resolve(), WatchGroup(name="inbox", paths=[root])),
     ]
     file_path = deep / "file.txt"
 
     group = _resolve_group(file_path, index)
 
-    assert group == "deep"
+    assert group is not None
+    assert group.name == "deep"
 
 
 def test_resolve_group_returns_none_for_unmatched(tmp_path: Path) -> None:
-    index = [((tmp_path / "inbox").resolve(), "inbox")]
+    root = tmp_path / "inbox"
+    index = [((root).resolve(), WatchGroup(name="inbox", paths=[root]))]
     file_path = tmp_path / "outside" / "file.txt"
 
     group = _resolve_group(file_path, index)
@@ -123,8 +125,10 @@ def test_matches_filters_include_allows_and_blocks() -> None:
         ]
     )
 
-    assert _matches_filters(Path("note.txt"), cfg, "inbox") is True
-    assert _matches_filters(Path("note.md"), cfg, "inbox") is False
+    group = cfg.watch_groups[0]
+
+    assert _matches_filters(Path("note.txt"), group) is True
+    assert _matches_filters(Path("note.md"), group) is False
 
 
 def test_matches_filters_exclude_blocks() -> None:
@@ -134,8 +138,10 @@ def test_matches_filters_exclude_blocks() -> None:
         ]
     )
 
-    assert _matches_filters(Path("note.txt"), cfg, "inbox") is True
-    assert _matches_filters(Path("note.tmp"), cfg, "inbox") is False
+    group = cfg.watch_groups[0]
+
+    assert _matches_filters(Path("note.txt"), group) is True
+    assert _matches_filters(Path("note.tmp"), group) is False
 
 
 def test_matches_filters_combined() -> None:
@@ -150,9 +156,11 @@ def test_matches_filters_combined() -> None:
         ]
     )
 
-    assert _matches_filters(Path("file.txt"), cfg, "inbox") is True
-    assert _matches_filters(Path("secret.txt"), cfg, "inbox") is False
-    assert _matches_filters(Path("image.png"), cfg, "inbox") is False
+    group = cfg.watch_groups[0]
+
+    assert _matches_filters(Path("file.txt"), group) is True
+    assert _matches_filters(Path("secret.txt"), group) is False
+    assert _matches_filters(Path("image.png"), group) is False
 
 
 def test_matches_filters_no_patterns_allows_all() -> None:
@@ -162,20 +170,14 @@ def test_matches_filters_no_patterns_allows_all() -> None:
         ]
     )
 
-    assert _matches_filters(Path("anything.any"), cfg, "inbox") is True
+    group = cfg.watch_groups[0]
+
+    assert _matches_filters(Path("anything.any"), group) is True
 
 
-def test_matches_filters_unknown_group_allows_all() -> None:
-    cfg = Config(
-        watch_groups=[
-            WatchGroup(name="inbox", paths=[Path(".")], include=["*.txt"]),
-        ]
-    )
-
-    assert _matches_filters(Path("file.md"), cfg, "unknown") is True
-
-
-def test_scan_existing_files_creates_events(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_scan_existing_files_creates_events(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     watch_path = tmp_path / "watch"
     watch_path.mkdir()
     (watch_path / "a.txt").write_text("a")
@@ -193,7 +195,6 @@ def test_scan_existing_files_creates_events(monkeypatch: pytest.MonkeyPatch, tmp
     _scan_existing_files(
         watch_paths=[watch_path.resolve()],
         group_index=group_index,
-        cfg=cfg,
         plugins=[],
         console=SimpleNamespace(print=lambda *_args, **_kwargs: None),
         dry_run=False,
@@ -234,7 +235,6 @@ def test_scan_existing_files_respects_filters(
     _scan_existing_files(
         watch_paths=[watch_path.resolve()],
         group_index=group_index,
-        cfg=cfg,
         plugins=[],
         console=SimpleNamespace(print=lambda *_args, **_kwargs: None),
         dry_run=True,
@@ -242,7 +242,6 @@ def test_scan_existing_files_respects_filters(
     )
 
     assert [event.path.name for event in dispatched] == ["a.txt"]
-
 
 def test_run_watcher_prints_summary_on_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -270,3 +269,39 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
     run_watcher(cfg, [], console)
 
     assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+
+
+def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    first_root = tmp_path / "a"
+    second_root = tmp_path / "b"
+    first_root.mkdir()
+    second_root.mkdir()
+
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[first_root], include=["*.txt"]),
+            WatchGroup(name="inbox", paths=[second_root], include=["*.md"]),
+        ],
+        plugins=[],
+    )
+
+    class StubConsole:
+        def print(self, _value) -> None:
+            return
+
+    emitted: list[object] = []
+
+    def fake_watch(*_args):
+        yield {(Change.added, str(second_root / "note.md"))}
+
+    def fake_dispatch(event, _plugins, **_kwargs):
+        emitted.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.watch", fake_watch)
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    run_watcher(cfg, [], StubConsole())
+
+    assert len(emitted) == 1
