@@ -6,6 +6,7 @@ from nomnom.dispatcher import dispatch
 from nomnom.effects import CreateFile, EmitEvent
 from nomnom.events import EventType
 from nomnom.stats import WatchStats
+from nomnom.stats import WatchStats
 
 
 def test_dispatch_calls_matching_plugin(make_event, stub_plugin_cls) -> None:
@@ -217,15 +218,46 @@ def test_dispatch_dry_run_recurses_emit_event(
     assert called is False
 
 
-def test_dispatch_records_stats(make_event, stub_plugin_cls) -> None:
+def test_dispatch_records_stats_for_matches_and_effects(
+    monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
+) -> None:
     event = make_event()
     effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
     plugin = stub_plugin_cls(matches_result=True, effects=[effect])
     stats = WatchStats()
 
-    dispatch(event, [("stub", plugin)], dry_run=True, stats=stats)
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: True)
+
+    dispatch(event, [("stub", plugin)], stats=stats)
 
     assert stats.events_processed == 1
     assert stats.plugin_match_counts == {"stub": 1}
+    assert stats.effects_applied == 1
+
+
+def test_dispatch_records_stats_for_emitted_events(
+    make_event, stub_plugin_cls
+) -> None:
+    first = make_event(path=Path("/tmp/first.txt"))
+    second = make_event(event_type=EventType.MODIFIED, path=Path("/tmp/second.txt"))
+    plugin = stub_plugin_cls(matches_result=True, effects=[EmitEvent(event=second)])
+    stats = WatchStats()
+
+    dispatch(first, [("stub", plugin)], stats=stats, max_depth=3)
+
+    assert stats.events_processed == 3
+
+
+def test_dispatch_does_not_count_noop_effects_as_applied(
+    monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+    stats = WatchStats()
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: False)
+
+    dispatch(event, [("stub", plugin)], stats=stats)
+
     assert stats.effects_applied == 0
-    assert stats.effects_skipped_dry_run == 1

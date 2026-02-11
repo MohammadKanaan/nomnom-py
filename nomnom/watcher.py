@@ -213,5 +213,6 @@ def run_watcher(
 
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)
     except KeyboardInterrupt:
+        pass
+    finally:
         stats.print_summary(console)
-        return
