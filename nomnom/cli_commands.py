@@ -92,8 +92,18 @@ def watch_command(
     watch_table = Table(title=f"Watch Groups ({len(cfg.watch_groups)})")
     watch_table.add_column("Name", style="green")
     watch_table.add_column("Paths", style="dim")
+    watch_table.add_column("Filters", style="dim")
     for wg in cfg.watch_groups:
-        watch_table.add_row(wg.name, ", ".join(str(p) for p in wg.paths))
+        filters: list[str] = []
+        if wg.include:
+            filters.append(f"include={','.join(wg.include)}")
+        if wg.exclude:
+            filters.append(f"exclude={','.join(wg.exclude)}")
+        watch_table.add_row(
+            wg.name,
+            ", ".join(str(p) for p in wg.paths),
+            "; ".join(filters) if filters else "-",
+        )
     console.print(watch_table)
 
     if dry_run:
@@ -130,7 +140,12 @@ def setup_command(
         try:
             cfg = load_config_fn(config)
             existing_watch_groups = [
-                {"name": wg.name, "paths": [str(p) for p in wg.paths]}
+                {
+                    "name": wg.name,
+                    "paths": [str(p) for p in wg.paths],
+                    "include": wg.include,
+                    "exclude": wg.exclude,
+                }
                 for wg in cfg.watch_groups
             ]
             existing_plugins = [{"name": p.name, "priority": p.priority} for p in cfg.plugins]
@@ -159,8 +174,23 @@ def setup_command(
             name = Prompt.ask("Watch group name")
             paths_input = Prompt.ask("Paths to watch (comma-separated)")
             paths = [p.strip() for p in paths_input.split(",") if p.strip()]
+            include_input = Prompt.ask(
+                "Include patterns (comma-separated, optional)", default=""
+            )
+            exclude_input = Prompt.ask(
+                "Exclude patterns (comma-separated, optional)", default=""
+            )
+            include = [p.strip() for p in include_input.split(",") if p.strip()]
+            exclude = [p.strip() for p in exclude_input.split(",") if p.strip()]
 
-            watch_groups.append({"name": name, "paths": paths})
+            watch_groups.append(
+                {
+                    "name": name,
+                    "paths": paths,
+                    "include": include,
+                    "exclude": exclude,
+                }
+            )
 
             if not Confirm.ask("Add another watch group?", default=False):
                 break

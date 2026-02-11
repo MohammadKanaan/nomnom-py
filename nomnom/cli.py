@@ -3,7 +3,6 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from nomnom.config import load_config
 from nomnom.cli_commands import (
     plugin_install_command,
     plugin_setup_command,
@@ -11,6 +10,7 @@ from nomnom.cli_commands import (
     setup_command,
     watch_command,
 )
+from nomnom.config import load_config
 from nomnom.create_plugin import create_plugin
 from nomnom.discovery import (
     discover_new_plugins,
@@ -28,6 +28,7 @@ app = typer.Typer(
 console = Console()
 
 app.command("create-plugin")(create_plugin)
+
 
 @app.command()
 def watch(
@@ -78,6 +79,7 @@ def setup(
         load_config_fn=load_config,
         discover_plugins_fn=discover_plugins,
     )
+
 
 @app.command()
 def plugin_install(

@@ -1,11 +1,12 @@
 import logging
 from datetime import datetime
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from watchfiles import Change, watch
 
-from nomnom.config import Config
+from nomnom.config import Config, WatchGroup
 from nomnom.dispatcher import dispatch
 from nomnom.events import EventType, FileEvent
 from nomnom.plugin import Plugin
@@ -29,12 +30,12 @@ EVENT_STYLES = {
 }
 
 RawChange = tuple[Change, str]
-GroupIndexEntry = tuple[Path, str]
+GroupIndexEntry = tuple[Path, WatchGroup]
 
 
 def _watch_root_specificity(entry: GroupIndexEntry) -> int:
     """Higher value means a deeper (more specific) watch root."""
-    root_path, _group_name = entry
+    root_path, _group = entry
     return len(root_path.parts)
 
 
@@ -42,16 +43,16 @@ def _build_group_index(config: Config) -> list[GroupIndexEntry]:
     index: list[GroupIndexEntry] = []
     for group in config.watch_groups:
         for path in group.paths:
-            index.append((path.resolve(), group.name))
+            index.append((path.resolve(), group))
     return sorted(index, key=_watch_root_specificity, reverse=True)
 
 
-def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> str | None:
+def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
     resolved = path.resolve(strict=False)
-    for root, group_name in index:
+    for root, group in index:
         try:
             resolved.relative_to(root)
-            return group_name
+            return group
         except ValueError:
             continue
     return None
@@ -89,6 +90,16 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
     return sorted(coalesced, key=_change_sort_key)
 
 
+def _matches_filters(path: Path, group: WatchGroup) -> bool:
+    if group.include and not any(fnmatch(path.name, pattern) for pattern in group.include):
+        return False
+
+    if group.exclude and any(fnmatch(path.name, pattern) for pattern in group.exclude):
+        return False
+
+    return True
+
+
 def run_watcher(
     cfg: Config,
     plugins: list[tuple[str, Plugin]],
@@ -124,11 +135,13 @@ def run_watcher(
                 watch_group = _resolve_group(path, group_index)
                 if watch_group is None:
                     continue
+                if not _matches_filters(path, watch_group):
+                    continue
 
                 event = FileEvent(
                     event_type=event_type,
                     path=path,
-                    watch_group=watch_group,
+                    watch_group=watch_group.name,
                     created_at=datetime.now(),
                 )
 
@@ -140,7 +153,7 @@ def run_watcher(
                     f"[{color}]{symbol}[/] "
                     f"[{color}]{event_type.value.upper()}[/]  "
                     f"{path.name}  "
-                    f"[dim]{watch_group}[/]"
+                    f"[dim]{watch_group.name}[/]"
                 )
 
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)

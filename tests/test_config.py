@@ -159,3 +159,39 @@ def test_load_config_file_not_found(tmp_path: Path) -> None:
 
     with pytest.raises(FileNotFoundError):
         load_config(missing)
+
+
+def test_load_config_watch_group_filters(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+include = ["*.txt", "*.md"]
+exclude = ["*.tmp"]
+""".strip()
+        + "\n"
+    )
+
+    cfg = load_config(config_path)
+
+    assert cfg.watch_groups[0].include == ["*.txt", "*.md"]
+    assert cfg.watch_groups[0].exclude == ["*.tmp"]
+
+
+def test_load_config_watch_group_filters_default_empty(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    cfg = load_config(config_path)
+
+    assert cfg.watch_groups[0].include == []
+    assert cfg.watch_groups[0].exclude == []
