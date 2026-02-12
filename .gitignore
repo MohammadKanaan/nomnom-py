@@ -46,7 +46,8 @@ htmlcov/
 *.toml.local
 
 # plugins
-plugins/
+plugins/*
+!plugins/nomnom-plugin-rules/
 rules.toml
 
 # config
