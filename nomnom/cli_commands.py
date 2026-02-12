@@ -42,9 +42,11 @@ def run_setups_for_plugins(
 
 def watch_command(
     *,
+    once_watch_group: str | None,
     config: Path,
     verbose: bool,
     dry_run: bool,
+    once: bool,
     console,
     load_config_fn,
     discover_plugins_fn,
@@ -69,6 +71,20 @@ def watch_command(
         raise typer.Exit(code=1)
 
     cfg = load_config_fn(config)
+    if once_watch_group and not once:
+        console.print("[red]Watch group argument is only supported with --once.[/]")
+        raise typer.Exit(code=1)
+
+    if once and once_watch_group:
+        available_groups = {group.name for group in cfg.watch_groups}
+        if once_watch_group not in available_groups:
+            available = ", ".join(sorted(available_groups)) if available_groups else "(none)"
+            console.print(
+                f"[red]Watch group not found: {once_watch_group}[/]\n"
+                f"[yellow]Available groups: {available}[/]"
+            )
+            raise typer.Exit(code=1)
+
     raw_plugins = discover_plugins_fn()
     plugins = prioritize_plugins_fn(raw_plugins, cfg)
 
@@ -106,12 +122,27 @@ def watch_command(
         )
     console.print(watch_table)
 
-    if dry_run:
+    if once:
+        if once_watch_group:
+            console.print(
+                f"\n[dim]One-shot mode: scanning existing files in group "
+                f"'{once_watch_group}'...[/]\n"
+            )
+        else:
+            console.print("\n[dim]One-shot mode: scanning existing files...[/]\n")
+    elif dry_run:
         console.print("\n[dim]Dry-run mode: showing effects without executing...[/]\n")
     else:
         console.print("\n[dim]Watching for changes... (Ctrl+C to stop)[/]\n")
 
-    run_watcher_fn(cfg, plugins, console, dry_run=dry_run)
+    run_watcher_fn(
+        cfg,
+        plugins,
+        console,
+        dry_run=dry_run,
+        once=once,
+        once_watch_group=once_watch_group,
+    )
 
 
 def setup_command(

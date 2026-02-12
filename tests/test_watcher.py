@@ -1,16 +1,19 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
 from nomnom.events import EventType
+from nomnom.stats import WatchStats
 from nomnom.watcher import (
     CHANGE_MAP,
     _build_group_index,
     _coalesce_changes,
     _matches_filters,
     _resolve_group,
+    _scan_existing_files,
     run_watcher,
 )
 
@@ -171,6 +174,76 @@ def test_matches_filters_no_patterns_allows_all() -> None:
 
     assert _matches_filters(Path("anything.any"), group) is True
 
+
+def test_scan_existing_files_creates_events(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "watch"
+    watch_path.mkdir()
+    (watch_path / "a.txt").write_text("a")
+    (watch_path / "b.md").write_text("b")
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])])
+    group_index = _build_group_index(cfg)
+    dispatched: list[object] = []
+
+    def fake_dispatch(event, plugins, **kwargs) -> None:
+        dispatched.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    _scan_existing_files(
+        watch_paths=[watch_path.resolve()],
+        group_index=group_index,
+        plugins=[],
+        console=SimpleNamespace(print=lambda *_args, **_kwargs: None),
+        dry_run=False,
+        stats=WatchStats(),
+    )
+
+    assert len(dispatched) == 2
+    assert {event.event_type for event in dispatched} == {EventType.CREATED}
+    assert {type(event.watch_group) for event in dispatched} == {str}
+
+
+def test_scan_existing_files_respects_filters(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "watch"
+    watch_path.mkdir()
+    (watch_path / "a.txt").write_text("a")
+    (watch_path / "b.tmp").write_text("b")
+    (watch_path / "c.md").write_text("c")
+
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(
+                name="inbox",
+                paths=[watch_path],
+                include=["*.txt", "*.tmp"],
+                exclude=["*.tmp"],
+            )
+        ]
+    )
+    group_index = _build_group_index(cfg)
+    dispatched: list[object] = []
+
+    def fake_dispatch(event, plugins, **kwargs) -> None:
+        dispatched.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    _scan_existing_files(
+        watch_paths=[watch_path.resolve()],
+        group_index=group_index,
+        plugins=[],
+        console=SimpleNamespace(print=lambda *_args, **_kwargs: None),
+        dry_run=True,
+        stats=WatchStats(),
+    )
+
+    assert [event.path.name for event in dispatched] == ["a.txt"]
+
 def test_run_watcher_prints_summary_on_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -197,6 +270,41 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
     run_watcher(cfg, [], console)
 
     assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+
+
+def test_run_watcher_once_scans_only_selected_group(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    inbox = tmp_path / "inbox"
+    archive = tmp_path / "archive"
+    inbox.mkdir()
+    archive.mkdir()
+    (inbox / "a.txt").write_text("a")
+    (archive / "b.txt").write_text("b")
+
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[inbox]),
+            WatchGroup(name="archive", paths=[archive]),
+        ],
+        plugins=[],
+    )
+
+    class StubConsole:
+        def print(self, _value) -> None:
+            return
+
+    emitted: list[object] = []
+
+    def fake_dispatch(event, _plugins, **_kwargs):
+        emitted.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    run_watcher(cfg, [], StubConsole(), once=True, once_watch_group="archive")
+
+    assert [event.path.name for event in emitted] == ["b.txt"]
+    assert [event.watch_group for event in emitted] == ["archive"]
 
 
 def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
