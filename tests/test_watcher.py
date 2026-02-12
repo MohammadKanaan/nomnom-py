@@ -203,6 +203,7 @@ def test_scan_existing_files_creates_events(
 
     assert len(dispatched) == 2
     assert {event.event_type for event in dispatched} == {EventType.CREATED}
+    assert {type(event.watch_group) for event in dispatched} == {str}
 
 
 def test_scan_existing_files_respects_filters(
@@ -269,6 +270,41 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
     run_watcher(cfg, [], console)
 
     assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+
+
+def test_run_watcher_once_scans_only_selected_group(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    inbox = tmp_path / "inbox"
+    archive = tmp_path / "archive"
+    inbox.mkdir()
+    archive.mkdir()
+    (inbox / "a.txt").write_text("a")
+    (archive / "b.txt").write_text("b")
+
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox", paths=[inbox]),
+            WatchGroup(name="archive", paths=[archive]),
+        ],
+        plugins=[],
+    )
+
+    class StubConsole:
+        def print(self, _value) -> None:
+            return
+
+    emitted: list[object] = []
+
+    def fake_dispatch(event, _plugins, **_kwargs):
+        emitted.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    run_watcher(cfg, [], StubConsole(), once=True, once_watch_group="archive")
+
+    assert [event.path.name for event in emitted] == ["b.txt"]
+    assert [event.watch_group for event in emitted] == ["archive"]
 
 
 def test_run_watcher_filters_use_matched_root_when_group_names_repeat(

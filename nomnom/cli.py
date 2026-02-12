@@ -32,6 +32,11 @@ app.command("create-plugin")(create_plugin)
 
 @app.command()
 def watch(
+    once_watch_group: str | None = typer.Argument(
+        None,
+        metavar="[WATCH_GROUP]",
+        help="Watch group name to process in --once mode",
+    ),
     config: Path = typer.Option(
         "config.toml",
         "--config",
@@ -58,6 +63,7 @@ def watch(
 ) -> None:
     """Watch configured folders and dispatch events to plugins."""
     watch_command(
+        once_watch_group=once_watch_group,
         config=config,
         verbose=verbose,
         dry_run=dry_run,

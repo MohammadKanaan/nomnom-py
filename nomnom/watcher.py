@@ -119,7 +119,7 @@ def _scan_existing_files(
             event = FileEvent(
                 event_type=EventType.CREATED,
                 path=path,
-                watch_group=watch_group,
+                watch_group=watch_group.name,
                 created_at=datetime.now(),
             )
 
@@ -130,10 +130,12 @@ def _scan_existing_files(
                 f"[{color}]{symbol}[/] "
                 f"[{color}]{event.event_type.value.upper()}[/]  "
                 f"{path.name}  "
-                f"[dim]{watch_group}[/]"
+                f"[dim]{watch_group.name}[/]"
             )
 
             dispatch(event, plugins, dry_run=dry_run, stats=stats)
+
+
 def run_watcher(
     cfg: Config,
     plugins: list[tuple[str, Plugin]],
@@ -141,9 +143,14 @@ def run_watcher(
     *,
     dry_run: bool = False,
     once: bool = False,
+    once_watch_group: str | None = None,
 ) -> None:
     stats = WatchStats()
-    all_paths = [path.resolve() for group in cfg.watch_groups for path in group.paths]
+    active_watch_groups = cfg.watch_groups
+    if once and once_watch_group is not None:
+        active_watch_groups = [group for group in cfg.watch_groups if group.name == once_watch_group]
+
+    all_paths = [path.resolve() for group in active_watch_groups for path in group.paths]
 
     # Filter out non-existent paths
     watch_paths = []
@@ -157,7 +164,7 @@ def run_watcher(
         logger.error("No valid paths to watch")
         return
 
-    group_index = _build_group_index(cfg)
+    group_index = _build_group_index(Config(watch_groups=active_watch_groups, plugins=cfg.plugins))
 
     if once:
         _scan_existing_files(
