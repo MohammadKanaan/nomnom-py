@@ -1,0 +1,7 @@
+[[rule]]
+name = "mark as read"
+on = "created"
+watch_group = "."
+match = ""
+action = "append"
+content = "nomnom sees you"
