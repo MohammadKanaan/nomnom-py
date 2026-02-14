@@ -8,6 +8,9 @@ from nomnom.cli_commands import (
     plugin_setup_command,
     run_setups_for_plugins,
     setup_command,
+    startup_disable_command,
+    startup_enable_command,
+    startup_status_command,
     watch_command,
 )
 from nomnom.config import load_config
@@ -19,13 +22,16 @@ from nomnom.discovery import (
     prioritize_plugins,
 )
 from nomnom.plugin import has_setup, run_plugin_setup
+from nomnom.startup import get_startup_installer
 from nomnom.watcher import run_watcher
 
 app = typer.Typer(
     help="Plugin-based file watcher CLI",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+startup_app = typer.Typer(help="Manage startup launch behavior")
 console = Console()
+app.add_typer(startup_app, name="startup")
 
 app.command("create-plugin")(create_plugin)
 
@@ -140,6 +146,34 @@ def plugin_setup(
             run_plugin_setup_fn=run_plugin_setup,
         ),
     )
+
+
+@startup_app.command("enable")
+def startup_enable(
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+) -> None:
+    """Enable launching nomnom watch at login."""
+    startup_enable_command(
+        config=config,
+        get_startup_installer_fn=get_startup_installer,
+    )
+
+
+@startup_app.command("disable")
+def startup_disable() -> None:
+    """Disable launching nomnom watch at login."""
+    startup_disable_command(get_startup_installer_fn=get_startup_installer)
+
+
+@startup_app.command("status")
+def startup_status() -> None:
+    """Show startup launch status."""
+    startup_status_command(get_startup_installer_fn=get_startup_installer)
 
 
 if __name__ == "__main__":

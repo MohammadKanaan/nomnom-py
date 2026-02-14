@@ -6,6 +6,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
+from nomnom.startup import get_startup_installer
 
 def run_setups_for_plugins(
     plugins: list[tuple[str, object]],
@@ -359,3 +360,51 @@ def plugin_setup_command(
         raise typer.Exit(1)
 
     run_setups_for_plugins_fn(selected_plugins)
+
+
+def startup_enable_command(
+    *,
+    config: Path,
+    get_startup_installer_fn=get_startup_installer,
+) -> None:
+    if not config.exists():
+        typer.echo(f"Config file not found: {config}")
+        raise typer.Exit(1)
+
+    try:
+        installer = get_startup_installer_fn()
+        plist_path = installer.enable(config.resolve())
+    except (NotImplementedError, OSError, RuntimeError, ValueError) as e:
+        typer.echo(f"Failed to enable startup launch: {e}")
+        raise typer.Exit(1)
+
+    typer.echo(f"Startup launch enabled ({plist_path}).")
+
+
+def startup_disable_command(
+    *,
+    get_startup_installer_fn=get_startup_installer,
+) -> None:
+    try:
+        installer = get_startup_installer_fn()
+        installer.disable()
+    except (NotImplementedError, OSError, RuntimeError, ValueError) as e:
+        typer.echo(f"Failed to disable startup launch: {e}")
+        raise typer.Exit(1)
+
+    typer.echo("Startup launch disabled.")
+
+
+def startup_status_command(
+    *,
+    get_startup_installer_fn=get_startup_installer,
+) -> None:
+    try:
+        installer = get_startup_installer_fn()
+        enabled = installer.status()
+    except (NotImplementedError, OSError, RuntimeError, ValueError) as e:
+        typer.echo(f"Failed to get startup launch status: {e}")
+        raise typer.Exit(1)
+
+    state = "enabled" if enabled else "disabled"
+    typer.echo(f"Startup launch is {state}.")
