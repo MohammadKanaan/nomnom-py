@@ -383,7 +383,10 @@ def plugin_add_command(
 
     if not config_path.exists():
         typer.echo(f"Warning: Configuration file {config_path} not found.")
-        typer.echo("Run 'nomnom setup' to create one.")
+        setup_cmd = "nomnom setup"
+        if config_path != Path("config.toml"):
+            setup_cmd += f" --config {config_path}"
+        typer.echo(f"Run '{setup_cmd}' to create one.")
     elif new_plugins:
         for name, _ in new_plugins:
             _update_plugin_in_config(config_path, name, enabled=True)
