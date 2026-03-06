@@ -17,7 +17,7 @@ Screen {
     border-bottom: solid #44475a;
 }
 
-#logo {
+#logo, .logo-icon {
     color: #ff79c6;
     text-style: bold;
 }

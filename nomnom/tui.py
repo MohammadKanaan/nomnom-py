@@ -107,7 +107,7 @@ class NomnomTUI(App):
         with Horizontal():
             with Vertical(id="sidebar"):
                 with Horizontal(id="sidebar-header"):
-                    yield Label(">_ ", classes="logo-icon", id="logo")
+                    yield Label(">_ ", classes="logo-icon")
                     yield Label("nomnom ", id="logo")
                     yield Label("v0.1.0", id="version")
 
