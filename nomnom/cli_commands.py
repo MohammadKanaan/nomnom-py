@@ -1,4 +1,5 @@
 import logging
+import subprocess
 from pathlib import Path
 
 import typer
@@ -370,11 +371,20 @@ def startup_enable_command(
     if not config.exists():
         typer.echo(f"Config file not found: {config}")
         raise typer.Exit(1)
+    if not config.is_file():
+        typer.echo(f"Config path is not a file: {config}")
+        raise typer.Exit(1)
 
     try:
         installer = get_startup_installer_fn()
         plist_path = installer.enable(config.resolve())
-    except (NotImplementedError, OSError, RuntimeError, ValueError) as e:
+    except (
+        NotImplementedError,
+        OSError,
+        RuntimeError,
+        ValueError,
+        subprocess.SubprocessError,
+    ) as e:
         typer.echo(f"Failed to enable startup launch: {e}")
         raise typer.Exit(1)
 
@@ -388,7 +398,13 @@ def startup_disable_command(
     try:
         installer = get_startup_installer_fn()
         installer.disable()
-    except (NotImplementedError, OSError, RuntimeError, ValueError) as e:
+    except (
+        NotImplementedError,
+        OSError,
+        RuntimeError,
+        ValueError,
+        subprocess.SubprocessError,
+    ) as e:
         typer.echo(f"Failed to disable startup launch: {e}")
         raise typer.Exit(1)
 
@@ -402,7 +418,13 @@ def startup_status_command(
     try:
         installer = get_startup_installer_fn()
         enabled = installer.status()
-    except (NotImplementedError, OSError, RuntimeError, ValueError) as e:
+    except (
+        NotImplementedError,
+        OSError,
+        RuntimeError,
+        ValueError,
+        subprocess.SubprocessError,
+    ) as e:
         typer.echo(f"Failed to get startup launch status: {e}")
         raise typer.Exit(1)
 

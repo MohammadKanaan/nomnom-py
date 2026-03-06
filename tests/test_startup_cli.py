@@ -1,5 +1,7 @@
+import subprocess
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import nomnom.cli as cli_module
@@ -23,6 +25,17 @@ class FakeInstaller:
 
     def status(self) -> bool:
         return self.enabled
+
+
+class FailingInstaller:
+    def enable(self, config_path: Path) -> Path:
+        raise subprocess.CalledProcessError(1, ["launchctl", "load"])
+
+    def disable(self) -> None:
+        raise subprocess.CalledProcessError(1, ["launchctl", "unload"])
+
+    def status(self) -> bool:
+        raise subprocess.CalledProcessError(1, ["launchctl", "list"])
 
 
 def test_startup_enable_uses_absolute_config_path(monkeypatch, tmp_path: Path) -> None:
@@ -51,6 +64,17 @@ def test_startup_enable_fails_when_config_missing(tmp_path: Path) -> None:
     assert "Config file not found" in result.output
 
 
+def test_startup_enable_fails_when_config_is_directory(tmp_path: Path) -> None:
+    config_dir = tmp_path / "config-dir"
+    config_dir.mkdir()
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["startup", "enable", "--config", str(config_dir)])
+
+    assert result.exit_code == 1
+    assert "Config path is not a file" in result.output
+
+
 def test_startup_disable_calls_installer(monkeypatch) -> None:
     fake = FakeInstaller(enabled=True)
     monkeypatch.setattr(cli_module, "get_startup_installer", lambda: fake)
@@ -72,3 +96,42 @@ def test_startup_status_reports_enabled(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert "Startup launch is enabled" in result.output
+
+
+def test_startup_status_reports_disabled(monkeypatch) -> None:
+    fake = FakeInstaller(enabled=False)
+    monkeypatch.setattr(cli_module, "get_startup_installer", lambda: fake)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["startup", "status"])
+
+    assert result.exit_code == 0
+    assert "Startup launch is disabled" in result.output
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["startup", "enable"], "Failed to enable startup launch"),
+        (["startup", "disable"], "Failed to disable startup launch"),
+        (["startup", "status"], "Failed to get startup launch status"),
+    ],
+)
+def test_startup_commands_handle_subprocess_failures(
+    monkeypatch,
+    tmp_path: Path,
+    args: list[str],
+    message: str,
+) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text("[[watch]]\nname='inbox'\npaths=['./inbox']\n")
+    monkeypatch.setattr(cli_module, "get_startup_installer", lambda: FailingInstaller())
+
+    runner = CliRunner()
+    full_args = args
+    if args[-1] == "enable":
+        full_args = args + ["--config", str(config_path)]
+    result = runner.invoke(app, full_args)
+
+    assert result.exit_code == 1
+    assert message in result.output

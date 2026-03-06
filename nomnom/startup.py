@@ -40,6 +40,9 @@ class MacOSLaunchAgentInstaller:
 
     def enable(self, config_path: Path) -> Path:
         resolved_config = config_path.resolve()
+        if self.status():
+            raise ValueError(f"Startup launch is already enabled ({self.plist_path}).")
+
         self.launch_agents_dir.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -62,7 +65,11 @@ class MacOSLaunchAgentInstaller:
         }
 
         self.plist_path.write_bytes(plistlib.dumps(plist_data))
-        self.run_command(["launchctl", "load", "-w", str(self.plist_path)])
+        try:
+            self.run_command(["launchctl", "load", "-w", str(self.plist_path)])
+        except Exception:
+            self.plist_path.unlink(missing_ok=True)
+            raise
         return self.plist_path
 
     def disable(self) -> None:
@@ -73,7 +80,13 @@ class MacOSLaunchAgentInstaller:
         self.plist_path.unlink()
 
     def status(self) -> bool:
-        return self.plist_path.exists()
+        if not self.plist_path.exists():
+            return False
+        try:
+            self.run_command(["launchctl", "list", LAUNCH_AGENT_LABEL])
+        except subprocess.CalledProcessError:
+            return False
+        return True
 
 
 class LinuxStartupInstaller:
