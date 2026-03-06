@@ -1,8 +1,9 @@
 import logging
+import threading
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from watchfiles import Change, watch
 
@@ -104,9 +105,10 @@ def _scan_existing_files(
     watch_paths: list[Path],
     group_index: list[GroupIndexEntry],
     plugins: list[tuple[str, Plugin]],
-    console: "Console",
+    console: "Console" | None,
     dry_run: bool,
     stats: WatchStats,
+    on_event: Callable[[FileEvent], None] | None = None,
 ) -> None:
     for watch_path in watch_paths:
         for path in sorted(p for p in watch_path.rglob("*") if p.is_file()):
@@ -123,15 +125,19 @@ def _scan_existing_files(
                 created_at=datetime.now(),
             )
 
-            color, symbol = EVENT_STYLES[EventType.CREATED]
-            timestamp = event.created_at.strftime("%H:%M:%S")
-            console.print(
-                f"[dim]{timestamp}[/] "
-                f"[{color}]{symbol}[/] "
-                f"[{color}]{event.event_type.value.upper()}[/]  "
-                f"{path.name}  "
-                f"[dim]{watch_group.name}[/]"
-            )
+            if console is not None:
+                color, symbol = EVENT_STYLES[EventType.CREATED]
+                timestamp = event.created_at.strftime("%H:%M:%S")
+                console.print(
+                    f"[dim]{timestamp}[/] "
+                    f"[{color}]{symbol}[/] "
+                    f"[{color}]{event.event_type.value.upper()}[/]  "
+                    f"{path.name}  "
+                    f"[dim]{watch_group.name}[/]"
+                )
+
+            if on_event:
+                on_event(event)
 
             dispatch(event, plugins, dry_run=dry_run, stats=stats)
 
@@ -139,13 +145,17 @@ def _scan_existing_files(
 def run_watcher(
     cfg: Config,
     plugins: list[tuple[str, Plugin]],
-    console: "Console",
+    console: "Console" | None,
     *,
     dry_run: bool = False,
     once: bool = False,
     once_watch_group: str | None = None,
+    on_event: Callable[[FileEvent], None] | None = None,
+    stats: WatchStats | None = None,
+    stop_event: threading.Event | None = None,
 ) -> None:
-    stats = WatchStats()
+    if stats is None:
+        stats = WatchStats()
     active_watch_groups = cfg.watch_groups
     if once and once_watch_group is not None:
         active_watch_groups = [group for group in cfg.watch_groups if group.name == once_watch_group]
@@ -174,12 +184,14 @@ def run_watcher(
             console,
             dry_run,
             stats,
+            on_event=on_event,
         )
-        stats.print_summary(console)
+        if console is not None:
+            stats.print_summary(console)
         return
 
     try:
-        for raw_changes in watch(*watch_paths):
+        for raw_changes in watch(*watch_paths, stop_event=stop_event):
             for change_type, changed in _coalesce_changes(raw_changes):
                 event_type = CHANGE_MAP.get(change_type)
                 if event_type is None:
@@ -199,19 +211,24 @@ def run_watcher(
                     created_at=datetime.now(),
                 )
 
-                # Color-coded event display
-                color, symbol = EVENT_STYLES[event_type]
-                timestamp = event.created_at.strftime("%H:%M:%S")
-                console.print(
-                    f"[dim]{timestamp}[/] "
-                    f"[{color}]{symbol}[/] "
-                    f"[{color}]{event_type.value.upper()}[/]  "
-                    f"{path.name}  "
-                    f"[dim]{watch_group.name}[/]"
-                )
+                if console is not None:
+                    # Color-coded event display
+                    color, symbol = EVENT_STYLES[event_type]
+                    timestamp = event.created_at.strftime("%H:%M:%S")
+                    console.print(
+                        f"[dim]{timestamp}[/] "
+                        f"[{color}]{symbol}[/] "
+                        f"[{color}]{event_type.value.upper()}[/]  "
+                        f"{path.name}  "
+                        f"[dim]{watch_group.name}[/]"
+                    )
+
+                if on_event:
+                    on_event(event)
 
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)
     except KeyboardInterrupt:
         pass
     finally:
-        stats.print_summary(console)
+        if console is not None:
+            stats.print_summary(console)

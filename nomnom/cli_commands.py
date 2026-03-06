@@ -145,6 +145,34 @@ def watch_command(
     )
 
 
+def tui_command(
+    *,
+    config: Path,
+    dry_run: bool,
+    console,
+    load_config_fn,
+    discover_plugins_fn,
+    prioritize_plugins_fn,
+) -> None:
+    if not config.exists():
+        setup_cmd = "nomnom setup"
+        if config != Path("config.toml"):
+            setup_cmd += f" --config {config}"
+        console.print(
+            f"[red]Config file not found: {config}[/]\n"
+            f"[yellow]Run `{setup_cmd}` to create one.[/]"
+        )
+        raise typer.Exit(code=1)
+
+    cfg = load_config_fn(config)
+    raw_plugins = discover_plugins_fn()
+    plugins = prioritize_plugins_fn(raw_plugins, cfg)
+
+    from nomnom.tui import NomnomTUI
+    app = NomnomTUI(config=cfg, plugins=plugins, dry_run=dry_run)
+    app.run()
+
+
 def setup_command(
     *,
     config: Path,

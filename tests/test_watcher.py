@@ -259,7 +259,7 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
         def print(self, value) -> None:
             self.calls.append(value)
 
-    def interrupted_watch(*_args):
+    def interrupted_watch(*_args, **_kwargs):
         raise KeyboardInterrupt
         yield  # pragma: no cover
 
@@ -329,7 +329,7 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
 
     emitted: list[object] = []
 
-    def fake_watch(*_args):
+    def fake_watch(*_args, **_kwargs):
         yield {(Change.added, str(second_root / "note.md"))}
 
     def fake_dispatch(event, _plugins, **_kwargs):

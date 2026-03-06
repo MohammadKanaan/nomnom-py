@@ -9,6 +9,7 @@ from nomnom.cli_commands import (
     run_setups_for_plugins,
     setup_command,
     watch_command,
+    tui_command,
 )
 from nomnom.config import load_config
 from nomnom.create_plugin import create_plugin
@@ -73,6 +74,32 @@ def watch(
         discover_plugins_fn=discover_plugins,
         prioritize_plugins_fn=prioritize_plugins,
         run_watcher_fn=run_watcher,
+    )
+
+
+@app.command()
+def tui(
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry",
+        "--dry-run",
+        help="Show effects without executing",
+    ),
+) -> None:
+    """Run nomnom in interactive Text UI mode."""
+    tui_command(
+        config=config,
+        dry_run=dry_run,
+        console=console,
+        load_config_fn=load_config,
+        discover_plugins_fn=discover_plugins,
+        prioritize_plugins_fn=prioritize_plugins,
     )
 
 

@@ -1,0 +1,195 @@
+Screen {
+    background: #282a36;
+    color: #f8f8f2;
+}
+
+#sidebar {
+    width: 32;
+    background: #21222c;
+    border-right: solid #44475a;
+    height: 100%;
+    dock: left;
+}
+
+#sidebar-header {
+    height: 3;
+    padding: 1 2;
+    border-bottom: solid #44475a;
+}
+
+#logo {
+    color: #ff79c6;
+    text-style: bold;
+}
+
+#version {
+    color: #6272a4;
+}
+
+#sidebar-content {
+    padding: 1 2;
+}
+
+.section-title {
+    color: #6272a4;
+    text-style: bold;
+    padding: 1 1 0 1;
+}
+
+.sidebar-item {
+    padding: 0 1;
+    color: #6272a4;
+    layout: horizontal;
+    width: 100%;
+}
+
+.sidebar-item.active {
+    background: #343746;
+    color: #f8f8f2;
+}
+
+.status-dot {
+    width: 2;
+}
+
+.status-dot.green {
+    color: #50fa7b;
+}
+
+.status-dot.cyan {
+    color: #8be9fd;
+}
+
+#main-area {
+    width: 100%;
+    height: 100%;
+    layout: vertical;
+}
+
+#header-badges {
+    height: 3;
+    dock: top;
+    align: right middle;
+    padding: 0 2;
+    border-bottom: solid #44475a;
+}
+
+.badge {
+    padding: 0 1;
+    margin-left: 1;
+    text-style: bold;
+}
+
+.badge.red {
+    background: #ff5555;
+    color: #282a36;
+}
+
+.badge.green {
+    background: #50fa7b;
+    color: #282a36;
+}
+
+#content {
+    padding: 1 2;
+    height: 100%;
+    width: 100%;
+    layout: vertical;
+}
+
+#kpis {
+    layout: horizontal;
+    height: 7;
+    margin-bottom: 1;
+}
+
+.kpi-box {
+    border: solid #44475a;
+    background: #21222c;
+    width: 1fr;
+    height: 100%;
+    padding: 1 2;
+    margin-right: 2;
+}
+
+.kpi-title {
+    color: #6272a4;
+    text-style: bold;
+}
+
+.kpi-value {
+    color: #f8f8f2;
+    text-style: bold;
+}
+
+.kpi-sub {
+    color: #8be9fd;
+}
+
+.kpi-sub.red {
+    color: #ff5555;
+}
+
+.kpi-sub.green {
+    color: #50fa7b;
+}
+
+.kpi-sub.purple {
+    color: #bd93f9;
+}
+
+#event-feed-section {
+    height: 2fr;
+    margin-bottom: 1;
+}
+
+.section-header {
+    layout: horizontal;
+    height: 1;
+    margin-bottom: 1;
+}
+
+.section-header-title {
+    color: #f8f8f2;
+    text-style: bold;
+}
+
+.section-header-sub {
+    color: #6272a4;
+}
+
+#event-table {
+    height: 1fr;
+    border: solid #44475a;
+    background: #21222c;
+}
+
+DataTable > .datatable--header {
+    background: #21222c;
+    color: #6272a4;
+}
+
+DataTable > .datatable--cursor {
+    background: #343746;
+}
+
+#effect-log-section {
+    height: 1fr;
+}
+
+#effect-log {
+    border: solid #44475a;
+    background: #21222c;
+    height: 1fr;
+    padding: 0 1;
+}
+
+RichLog {
+    background: #21222c;
+}
+
+Footer {
+    background: #21222c;
+    color: #6272a4;
+    border-top: solid #44475a;
+}
