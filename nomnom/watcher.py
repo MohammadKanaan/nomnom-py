@@ -50,11 +50,10 @@ def _build_group_index(config: Config) -> list[GroupIndexEntry]:
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
     resolved = path.resolve(strict=False)
     for root, group in index:
-        try:
-            resolved.relative_to(root)
+        # Optimization: use is_relative_to instead of try-except on relative_to.
+        # This removes expensive exception handling in path resolution.
+        if resolved.is_relative_to(root):
             return group
-        except ValueError:
-            continue
     return None
 
 
@@ -72,9 +71,10 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
 
     coalesced: list[RawChange] = []
     for changed, change_types in by_path.items():
-        path_exists = Path(changed).exists()
-
+        # Optimization: Only check disk existence when resolving add/delete conflicts
+        # This saves significant I/O during large batch updates
         if Change.added in change_types and Change.deleted in change_types:
+            path_exists = Path(changed).exists()
             selected = Change.added if path_exists else Change.deleted
         elif Change.added in change_types:
             selected = Change.added

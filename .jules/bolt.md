@@ -1,0 +1,3 @@
+## 2024-10-24 - File watcher optimization
+**Learning:** In a file watcher like `nomnom`, `watchfiles` can emit large batches of changes. Calling `Path(changed).exists()` on every single change is a major I/O bottleneck. Python's exception handling (`try: ... relative_to() except ValueError:`) inside a hot loop for path resolution is also a measurable CPU bottleneck compared to `is_relative_to()`.
+**Action:** Always defer slow system calls (like `exists()`, `stat()`) to the absolute latest point they are needed, especially in loops over file events. Prefer boolean checks over exception handling in hot loops when standard library alternatives like `is_relative_to()` exist.
