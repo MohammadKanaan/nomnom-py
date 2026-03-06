@@ -291,6 +291,15 @@ def setup_command(
         console.print(f"[red]Error saving config: {e}[/]")
 
 
+def _warn_missing_config(config_path: Path, is_error: bool = False) -> None:
+    """Helper to warn the user if a configuration file is missing."""
+    if not config_path.exists():
+        prefix = "Error" if is_error else "Warning"
+        typer.echo(f"{prefix}: Configuration file {config_path} not found.")
+        if not is_error:
+            typer.echo("Run 'nomnom setup' to create one.")
+
+
 def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool) -> bool:
     """Helper to update the enabled status of a plugin in config.toml."""
     import tomli_w
@@ -382,11 +391,7 @@ def plugin_add_command(
     new_plugins = discover_new_plugins_fn(installed_before)
 
     if not config_path.exists():
-        typer.echo(f"Warning: Configuration file {config_path} not found.")
-        setup_cmd = "nomnom setup"
-        if config_path != Path("config.toml"):
-            setup_cmd += f" --config {config_path}"
-        typer.echo(f"Run '{setup_cmd}' to create one.")
+        _warn_missing_config(config_path)
     elif new_plugins:
         for name, _ in new_plugins:
             _update_plugin_in_config(config_path, name, enabled=True)
@@ -441,20 +446,23 @@ def plugin_remove_command(
     installed_after = get_installed_plugin_names_fn()
     removed_plugins = installed_before - installed_after
 
-    # Also try to remove the package name directly in case the user manually added it
-    # and it was never actually installed as a plugin entrypoint.
-    names_to_remove = list(removed_plugins)
-    if package not in names_to_remove:
-        names_to_remove.append(package)
+    if not config_path.exists():
+        _warn_missing_config(config_path)
+    else:
+        # Also try to remove the package name directly in case the user manually added it
+        # and it was never actually installed as a plugin entrypoint.
+        names_to_remove = list(removed_plugins)
+        if package not in names_to_remove:
+            names_to_remove.append(package)
 
-    removed_any = False
-    for name in names_to_remove:
-        if _remove_plugin_from_config(config_path, name):
-            typer.echo(f"Removed plugin '{name}' from {config_path}.")
-            removed_any = True
+        removed_any = False
+        for name in names_to_remove:
+            if _remove_plugin_from_config(config_path, name):
+                typer.echo(f"Removed plugin '{name}' from {config_path}.")
+                removed_any = True
 
-    if not removed_any:
-        typer.echo(f"No plugins matching '{package}' were found in {config_path}.")
+        if not removed_any:
+            typer.echo(f"No plugins matching '{package}' were found in {config_path}.")
 
 
 def plugin_disable_command(
@@ -463,7 +471,7 @@ def plugin_disable_command(
     config_path: Path,
 ) -> None:
     if not config_path.exists():
-        typer.echo(f"Error: Configuration file {config_path} not found.")
+        _warn_missing_config(config_path, is_error=True)
         raise typer.Exit(1)
 
     if _update_plugin_in_config(config_path, plugin_name, enabled=False):
@@ -478,7 +486,7 @@ def plugin_enable_command(
     config_path: Path,
 ) -> None:
     if not config_path.exists():
-        typer.echo(f"Error: Configuration file {config_path} not found.")
+        _warn_missing_config(config_path, is_error=True)
         raise typer.Exit(1)
 
     if _update_plugin_in_config(config_path, plugin_name, enabled=True):

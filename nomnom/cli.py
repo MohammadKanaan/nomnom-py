@@ -143,7 +143,7 @@ def plugin_remove(
         help="Path to TOML config file",
     ),
 ) -> None:
-    """Remove a plugin package and remove it from configuration."""
+    """Remove a plugin package and from configuration."""
     plugin_remove_command(
         package=package,
         config_path=config,
