@@ -1,0 +1,4 @@
+## 2024-05-24 - Argument Injection in subprocess.run
+**Vulnerability:** Found a vulnerability where user-provided input was directly appended to a shell command (`uv pip install`) via `subprocess.run` as a positional argument. Because it wasn't escaped with `--`, a malicious user could provide input starting with `-` or `--` to inject arguments (like `--extra-index-url`), potentially leading to unauthorized operations or malicious package installations.
+**Learning:** Even when `shell=False` is used in `subprocess.run`, argument injection can occur if arbitrary user strings are passed to the end of a command list. Programs interpreting these commands might parse trailing strings as options rather than positional arguments.
+**Prevention:** To prevent argument injection when executing subcommands with user-provided input intended as a positional argument, always use the `--` separator to explicitly delineate options from positional arguments.

