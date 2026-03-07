@@ -29,12 +29,12 @@ class Rule:
     destination: str | None = None
     watch_group: str | None = None
 
-    def matches(self, event: FileEvent) -> bool:
-        if event.event_type.value != self.on:
+    def matches(self, event_type_val: str, watch_group: str, path_name: str) -> bool:
+        if event_type_val != self.on:
             return False
-        if self.watch_group is not None and self.watch_group != event.watch_group:
+        if self.watch_group is not None and self.watch_group != watch_group:
             return False
-        return bool(self.match.search(event.path.name))
+        return bool(self.match.search(path_name))
 
 
 class RulesPlugin:
@@ -42,13 +42,19 @@ class RulesPlugin:
         self._rules = self._load_rules()
 
     def matches(self, event: FileEvent) -> bool:
-        return any(rule.matches(event) for rule in self._rules)
+        event_type_val = event.event_type.value
+        watch_group = event.watch_group
+        path_name = event.path.name
+        return any(rule.matches(event_type_val, watch_group, path_name) for rule in self._rules)
 
     def handle(self, event: FileEvent) -> list[Effect]:
         effects: list[Effect] = []
+        event_type_val = event.event_type.value
+        watch_group = event.watch_group
+        path_name = event.path.name
 
         for rule in self._rules:
-            if not rule.matches(event):
+            if not rule.matches(event_type_val, watch_group, path_name):
                 continue
 
             if rule.action == "prepend":
@@ -75,7 +81,7 @@ class RulesPlugin:
                         source=event.path,
                         destination=_resolve_destination(
                             destination=rule.destination or "",
-                            source_name=event.path.name,
+                            source_name=path_name,
                         ),
                     )
                 )
