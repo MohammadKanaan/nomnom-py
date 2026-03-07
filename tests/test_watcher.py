@@ -2,6 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from rich.console import Console
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
@@ -175,6 +176,28 @@ def test_matches_filters_no_patterns_allows_all() -> None:
     assert _matches_filters(Path("anything.any"), group) is True
 
 
+def test_scan_existing_files_escapes_markup(tmp_path: Path) -> None:
+    watch_path = tmp_path / "watch"
+    watch_path.mkdir()
+    (watch_path / "a[file].txt").write_text("a")
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox[dir]", paths=[watch_path])])
+    group_index = _build_group_index(cfg)
+
+    console = Console()
+    try:
+        _scan_existing_files(
+            watch_paths=[watch_path.resolve()],
+            group_index=group_index,
+            plugins=[],
+            console=console,
+            dry_run=False,
+            stats=WatchStats(),
+        )
+    except Exception as e:
+        pytest.fail(f"MarkupError raised: {e}")
+
+
 def test_scan_existing_files_creates_events(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -270,6 +293,31 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
     run_watcher(cfg, [], console)
 
     assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+
+
+def test_run_watcher_escapes_markup_in_changes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "inbox[dir]"
+    watch_path.mkdir()
+
+    cfg = Config(
+        watch_groups=[
+            WatchGroup(name="inbox[dir]", paths=[watch_path]),
+        ],
+        plugins=[],
+    )
+
+    def fake_watch(*_args):
+        yield {(Change.added, str(watch_path / "malicious[file].txt"))}
+
+    monkeypatch.setattr("nomnom.watcher.watch", fake_watch)
+
+    console = Console()
+    try:
+        run_watcher(cfg, [], console)
+    except Exception as e:
+        pytest.fail(f"MarkupError raised: {e}")
 
 
 def test_run_watcher_once_scans_only_selected_group(
