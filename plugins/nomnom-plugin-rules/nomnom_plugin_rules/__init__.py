@@ -29,12 +29,13 @@ class Rule:
     destination: str | None = None
     watch_group: str | None = None
 
-    def matches(self, event: FileEvent) -> bool:
-        if event.event_type.value != self.on:
+    def matches(self, event_type_value: str, watch_group: str | None, path_name: str) -> bool:
+        """Evaluate rule against pre-extracted event properties for performance."""
+        if event_type_value != self.on:
             return False
-        if self.watch_group is not None and self.watch_group != event.watch_group:
+        if self.watch_group is not None and self.watch_group != watch_group:
             return False
-        return bool(self.match.search(event.path.name))
+        return bool(self.match.search(path_name))
 
 
 class RulesPlugin:
@@ -42,13 +43,26 @@ class RulesPlugin:
         self._rules = self._load_rules()
 
     def matches(self, event: FileEvent) -> bool:
-        return any(rule.matches(event) for rule in self._rules)
+        # Cache properties to avoid redundant attribute access overhead in the loop
+        event_type_value = event.event_type.value
+        watch_group = event.watch_group
+        path_name = event.path.name
+
+        return any(
+            rule.matches(event_type_value, watch_group, path_name)
+            for rule in self._rules
+        )
 
     def handle(self, event: FileEvent) -> list[Effect]:
         effects: list[Effect] = []
 
+        # Cache properties for performance
+        event_type_value = event.event_type.value
+        watch_group = event.watch_group
+        path_name = event.path.name
+
         for rule in self._rules:
-            if not rule.matches(event):
+            if not rule.matches(event_type_value, watch_group, path_name):
                 continue
 
             if rule.action == "prepend":
