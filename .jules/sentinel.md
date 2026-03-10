@@ -1,0 +1,4 @@
+## 2024-11-05 - Subprocess Argument Injection in CLI tools
+**Vulnerability:** Argument injection via user-controlled `package` variable passed to `subprocess.run(["uv", "pip", "install", ... , package])`.
+**Learning:** Even when `shell=False` is used, passing unsanitized user inputs to tools like `pip` or `uv pip` can lead to injection of options (e.g. `--find-links`, `-r requirements.txt`) if the input starts with a `-` or `--`. This allows users to unexpectedly alter the command's behavior and potentially execute arbitrary code or bypass security controls.
+**Prevention:** When executing commands that accept options, always use the `--` separator to explicitly delineate positional arguments from options if the trailing arguments come from user input (e.g., `subprocess.run(["uv", "pip", "install", "--", package])`).
