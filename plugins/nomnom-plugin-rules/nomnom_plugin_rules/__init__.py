@@ -30,11 +30,15 @@ class Rule:
     watch_group: str | None = None
 
     def matches(self, event: FileEvent) -> bool:
-        if event.event_type.value != self.on:
+        return self.matches_cached(event.event_type.value, event.watch_group, event.path.name)
+
+    def matches_cached(self, event_type_val: str, watch_group: str, path_name: str) -> bool:
+        """Optimized match using pre-extracted event properties."""
+        if event_type_val != self.on:
             return False
-        if self.watch_group is not None and self.watch_group != event.watch_group:
+        if self.watch_group is not None and self.watch_group != watch_group:
             return False
-        return bool(self.match.search(event.path.name))
+        return bool(self.match.search(path_name))
 
 
 class RulesPlugin:
@@ -42,13 +46,25 @@ class RulesPlugin:
         self._rules = self._load_rules()
 
     def matches(self, event: FileEvent) -> bool:
-        return any(rule.matches(event) for rule in self._rules)
+        if not self._rules:
+            return False
+        event_type_val = event.event_type.value
+        watch_group = event.watch_group
+        path_name = event.path.name
+        return any(rule.matches_cached(event_type_val, watch_group, path_name) for rule in self._rules)
 
     def handle(self, event: FileEvent) -> list[Effect]:
         effects: list[Effect] = []
 
+        if not self._rules:
+            return effects
+
+        event_type_val = event.event_type.value
+        watch_group = event.watch_group
+        path_name = event.path.name
+
         for rule in self._rules:
-            if not rule.matches(event):
+            if not rule.matches_cached(event_type_val, watch_group, path_name):
                 continue
 
             if rule.action == "prepend":
