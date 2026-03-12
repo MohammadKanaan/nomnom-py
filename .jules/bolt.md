@@ -1,0 +1,3 @@
+## 2024-05-14 - Optimize nomnom-plugin-rules rule matching
+**Learning:** Checking a regex match against event objects during repeated loop evaluation introduces attribute access overhead, particularly in Python, on hot execution paths in plugins handling file events.
+**Action:** Extract and cache frequently accessed property values (e.g., event type, watch group, path name) before loops that evaluate large sets of rules in file watcher event handling to reduce redundant object traversals.
