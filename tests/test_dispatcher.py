@@ -6,7 +6,6 @@ from nomnom.dispatcher import dispatch
 from nomnom.effects import CreateFile, EmitEvent
 from nomnom.events import EventType
 from nomnom.stats import WatchStats
-from nomnom.stats import WatchStats
 
 
 def test_dispatch_calls_matching_plugin(make_event, stub_plugin_cls) -> None:
