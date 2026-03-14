@@ -1,0 +1,3 @@
+## 2024-05-15 - Optimize FileEvent property access in rules loop
+**Learning:** In plugins that process high-frequency file watcher events across multiple rules (like `nomnom-plugin-rules`), repeatedly accessing properties like `event.event_type.value`, `event.watch_group`, and `event.path.name` inside an evaluation loop introduces significant attribute access and method call overhead.
+**Action:** Always cache these string properties prior to entering rule-evaluation loops to avoid redundant lookups. Passing primitive types instead of objects to matching logic speeds up the core handling loop substantially.
