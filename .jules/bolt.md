@@ -1,0 +1,3 @@
+## 2024-05-28 - Avoid breaking encapsulation for micro-optimizations
+**Learning:** Inlining object methods (like `Rule.matches`) into caller loops (like `RulesPlugin.matches`) to avoid a function call overhead provides negligible performance benefits when the loop contains significantly more expensive operations (like regex `search`). Furthermore, it completely breaks object-oriented encapsulation and DRY principles.
+**Action:** Do not sacrifice code readability and maintainability for micro-optimizations without a proven bottleneck. When optimizing loops, focus on expensive operations (like I/O, regex, or algorithms) rather than method call overhead.

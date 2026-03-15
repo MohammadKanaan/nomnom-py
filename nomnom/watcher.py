@@ -1,3 +1,4 @@
+import functools
 import logging
 from datetime import datetime
 from fnmatch import fnmatch
@@ -90,11 +91,19 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
     return sorted(coalesced, key=_change_sort_key)
 
 
+@functools.lru_cache(maxsize=1024)
+def _matches_any(name: str, patterns: tuple[str, ...]) -> bool:
+    """Cached pattern matching to avoid redundant fnmatch overhead."""
+    for pattern in patterns:
+        if fnmatch(name, pattern):
+            return True
+    return False
+
 def _matches_filters(path: Path, group: WatchGroup) -> bool:
-    if group.include and not any(fnmatch(path.name, pattern) for pattern in group.include):
+    if group.include and not _matches_any(path.name, tuple(group.include)):
         return False
 
-    if group.exclude and any(fnmatch(path.name, pattern) for pattern in group.exclude):
+    if group.exclude and _matches_any(path.name, tuple(group.exclude)):
         return False
 
     return True
