@@ -127,7 +127,9 @@ paths = ["./archive"]
 
     monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
 
-    result = runner.invoke(app, ["watch", "--config", str(config_path), "--once", "archive"])
+    result = runner.invoke(
+        app, ["watch", "--config", str(config_path), "--once", "archive"]
+    )
 
     assert result.exit_code == 0
     assert captured_kwargs.get("once") is True
@@ -182,7 +184,9 @@ paths = ["./archive"]
 
     monkeypatch.setattr(cli_module, "run_watcher", fail_run_watcher)
 
-    result = runner.invoke(app, ["watch", "--config", str(config_path), "--once", "missing"])
+    result = runner.invoke(
+        app, ["watch", "--config", str(config_path), "--once", "missing"]
+    )
 
     assert result.exit_code == 1
     assert "Watch group not found: missing" in result.output
@@ -229,6 +233,7 @@ def test_plugin_install_runs_setup_for_new_plugin(
         "install",
         "--python",
         sys.executable,
+        "--",
         "nomnom-plugin-fresh",
     ]
     assert "Running setup() for plugin 'fresh'..." in result.output

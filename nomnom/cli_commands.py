@@ -78,7 +78,9 @@ def watch_command(
     if once and once_watch_group:
         available_groups = {group.name for group in cfg.watch_groups}
         if once_watch_group not in available_groups:
-            available = ", ".join(sorted(available_groups)) if available_groups else "(none)"
+            available = (
+                ", ".join(sorted(available_groups)) if available_groups else "(none)"
+            )
             console.print(
                 f"[red]Watch group not found: {once_watch_group}[/]\n"
                 f"[yellow]Available groups: {available}[/]"
@@ -96,7 +98,9 @@ def watch_command(
     )
     console.print(banner)
 
-    plugin_table = Table(title=f"Plugins ({len(plugins)})", show_header=len(plugins) > 0)
+    plugin_table = Table(
+        title=f"Plugins ({len(plugins)})", show_header=len(plugins) > 0
+    )
     plugin_table.add_column("Name", style="magenta")
     plugin_table.add_column("Priority", justify="right", style="dim")
     priority_map = {p.name: p.priority for p in cfg.plugins}
@@ -179,7 +183,9 @@ def setup_command(
                 }
                 for wg in cfg.watch_groups
             ]
-            existing_plugins = [{"name": p.name, "priority": p.priority} for p in cfg.plugins]
+            existing_plugins = [
+                {"name": p.name, "priority": p.priority} for p in cfg.plugins
+            ]
         except Exception as e:
             console.print(f"[red]Error loading config: {e}[/]")
             existing_watch_groups = []
@@ -260,7 +266,9 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default="50"))
+            priority = int(
+                Prompt.ask("Priority (lower = higher priority)", default="50")
+            )
             plugins.append({"name": name, "priority": priority})
 
             if not Confirm.ask("Configure another plugin?", default=False):
@@ -297,7 +305,7 @@ def plugin_install_command(
 
     typer.echo(f"Installing {package}...")
     installed_before = get_installed_plugin_names_fn()
-    install_cmd = ["uv", "pip", "install", "--python", sys.executable, package]
+    install_cmd = ["uv", "pip", "install", "--python", sys.executable, "--", package]
 
     try:
         result = subprocess.run(
@@ -353,7 +361,9 @@ def plugin_setup_command(
         run_setups_for_plugins_fn(discovered)
         return
 
-    selected_plugins = [(plugin_name, p) for plugin_name, p in discovered if plugin_name == name]
+    selected_plugins = [
+        (plugin_name, p) for plugin_name, p in discovered if plugin_name == name
+    ]
     if not selected_plugins:
         typer.echo(f"Plugin '{name}' was not found.")
         raise typer.Exit(1)
