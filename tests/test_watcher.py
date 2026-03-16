@@ -121,7 +121,7 @@ def test_coalesce_prefers_added_over_modified_for_same_path(tmp_path: Path) -> N
 def test_matches_filters_include_allows_and_blocks() -> None:
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[Path(".")], include=["*.txt"]),
+            WatchGroup(name="inbox", paths=[Path(".")], include=("*.txt",)),
         ]
     )
 
@@ -134,7 +134,7 @@ def test_matches_filters_include_allows_and_blocks() -> None:
 def test_matches_filters_exclude_blocks() -> None:
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[Path(".")], exclude=["*.tmp"]),
+            WatchGroup(name="inbox", paths=[Path(".")], exclude=("*.tmp",)),
         ]
     )
 
@@ -150,8 +150,8 @@ def test_matches_filters_combined() -> None:
             WatchGroup(
                 name="inbox",
                 paths=[Path(".")],
-                include=["*.txt", "*.md"],
-                exclude=["secret.*"],
+                include=("*.txt", "*.md"),
+                exclude=("secret.*",),
             ),
         ]
     )
@@ -220,8 +220,8 @@ def test_scan_existing_files_respects_filters(
             WatchGroup(
                 name="inbox",
                 paths=[watch_path],
-                include=["*.txt", "*.tmp"],
-                exclude=["*.tmp"],
+                include=("*.txt", "*.tmp"),
+                exclude=("*.tmp",),
             )
         ]
     )
@@ -317,8 +317,8 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
 
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[first_root], include=["*.txt"]),
-            WatchGroup(name="inbox", paths=[second_root], include=["*.md"]),
+            WatchGroup(name="inbox", paths=[first_root], include=("*.txt",)),
+            WatchGroup(name="inbox", paths=[second_root], include=("*.md",)),
         ],
         plugins=[],
     )
