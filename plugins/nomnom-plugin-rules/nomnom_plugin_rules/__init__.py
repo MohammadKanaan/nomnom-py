@@ -5,7 +5,6 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from nomnom.effects import DeleteFile, EditAction, EditFile, Effect, MoveFile
 from nomnom.events import FileEvent
@@ -114,7 +113,7 @@ class RulesPlugin:
         return rules
 
 
-def _parse_rule(candidate: Any) -> Rule | None:
+def _parse_rule(candidate: object) -> Rule | None:
     if not isinstance(candidate, dict):
         return None
 
