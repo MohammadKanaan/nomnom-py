@@ -9,7 +9,9 @@ from nomnom.events import EventType, FileEvent
 
 @pytest.fixture
 def rules_module(monkeypatch: pytest.MonkeyPatch):
-    plugin_root = Path(__file__).resolve().parent.parent / "plugins" / "nomnom-plugin-rules"
+    plugin_root = (
+        Path(__file__).resolve().parent.parent / "plugins" / "nomnom-plugin-rules"
+    )
     monkeypatch.syspath_prepend(str(plugin_root))
     import importlib
 
@@ -145,7 +147,9 @@ content = "DRAFT\\n"
     assert plugin.matches(make_event(path="/tmp/note.md", watch_group="inbox"))
     assert not plugin.matches(make_event(path="/tmp/note.md", watch_group="other"))
     assert not plugin.matches(
-        make_event(path="/tmp/note.md", watch_group="inbox", event_type=EventType.MODIFIED)
+        make_event(
+            path="/tmp/note.md", watch_group="inbox", event_type=EventType.MODIFIED
+        )
     )
     assert not plugin.matches(make_event(path="/tmp/note.txt", watch_group="inbox"))
 
@@ -221,10 +225,14 @@ destination = "./archive/"
     move_effects = plugin.handle(make_event(path="/tmp/move.txt"))
 
     assert prepend_effects == [
-        EditFile(path=Path("/tmp/prepend.txt"), action=EditAction.PREPEND, content=b"HEAD")
+        EditFile(
+            path=Path("/tmp/prepend.txt"), action=EditAction.PREPEND, content=b"HEAD"
+        )
     ]
     assert append_effects == [
-        EditFile(path=Path("/tmp/append.txt"), action=EditAction.APPEND, content=b"TAIL")
+        EditFile(
+            path=Path("/tmp/append.txt"), action=EditAction.APPEND, content=b"TAIL"
+        )
     ]
     assert delete_effects == [DeleteFile(path=Path("/tmp/delete.txt"))]
     assert move_effects == [

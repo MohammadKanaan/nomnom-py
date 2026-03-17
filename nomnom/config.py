@@ -7,8 +7,14 @@ import tomllib
 class WatchGroup:
     name: str
     paths: list[Path]
-    include: list[str] = field(default_factory=list)
-    exclude: list[str] = field(default_factory=list)
+    include: tuple[str, ...] = field(default_factory=tuple)
+    exclude: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.include, list):
+            self.include = tuple(self.include)
+        if isinstance(self.exclude, list):
+            self.exclude = tuple(self.exclude)
 
 
 @dataclass
@@ -31,8 +37,8 @@ def load_config(path: Path) -> Config:
         WatchGroup(
             name=w["name"],
             paths=[Path(p) for p in w["paths"]],
-            include=list(w.get("include", [])),
-            exclude=list(w.get("exclude", [])),
+            include=tuple(w.get("include", [])),
+            exclude=tuple(w.get("exclude", [])),
         )
         for w in data["watch"]
     ]
