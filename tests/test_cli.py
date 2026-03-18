@@ -228,7 +228,7 @@ def test_plugin_install_runs_setup_for_new_plugin(
         "pip",
         "install",
         "--python",
-        sys.executable,
+        sys.executable, "--",
         "nomnom-plugin-fresh",
     ]
     assert "Running setup() for plugin 'fresh'..." in result.output
