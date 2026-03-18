@@ -181,7 +181,7 @@ def test_discover_local_nonexistent_dir(tmp_path: Path) -> None:
 def test_prioritize_plugins_sorts_by_priority() -> None:
     plugins = [("alpha", object()), ("beta", object()), ("gamma", object())]
     config = Config(
-        watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
+        watch_groups=[WatchGroup(name="inbox", paths=(Path("./inbox"),))],
         plugins=[
             PluginConfig(name="gamma", priority=5),
             PluginConfig(name="alpha", priority=20),
@@ -197,7 +197,7 @@ def test_prioritize_plugins_sorts_by_priority() -> None:
 def test_prioritize_plugins_default_priority() -> None:
     plugins = [("configured", object()), ("defaulted", object())]
     config = Config(
-        watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
+        watch_groups=[WatchGroup(name="inbox", paths=(Path("./inbox"),))],
         plugins=[PluginConfig(name="configured", priority=5)],
     )
 

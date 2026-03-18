@@ -78,6 +78,5 @@ def dispatch(
                         stats.record_effect()
                 except Exception:
                     logger.exception(
-                        f"Effect {type(effect).__name__} failed "
-                        f"(from plugin '{name}')"
+                        f"Effect {type(effect).__name__} failed (from plugin '{name}')"
                     )

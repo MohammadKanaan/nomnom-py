@@ -23,8 +23,8 @@ def test_build_group_index_creates_entries(tmp_path: Path) -> None:
     second = tmp_path / "shared"
     config = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[first, second]),
-            WatchGroup(name="archive", paths=[tmp_path / "archive"]),
+            WatchGroup(name="inbox", paths=(first, second)),
+            WatchGroup(name="archive", paths=(tmp_path / "archive",)),
         ]
     )
 
@@ -41,8 +41,8 @@ def test_build_group_index_sorts_longest_first(tmp_path: Path) -> None:
     deep = tmp_path / "root" / "nested"
     config = Config(
         watch_groups=[
-            WatchGroup(name="shallow", paths=[shallow]),
-            WatchGroup(name="deep", paths=[deep]),
+            WatchGroup(name="shallow", paths=(shallow,)),
+            WatchGroup(name="deep", paths=(deep,)),
         ]
     )
 
@@ -56,8 +56,8 @@ def test_resolve_group_matches_nested_path(tmp_path: Path) -> None:
     root = tmp_path / "inbox"
     deep = root / "nested"
     index = [
-        (deep.resolve(), WatchGroup(name="deep", paths=[deep])),
-        (root.resolve(), WatchGroup(name="inbox", paths=[root])),
+        (deep.resolve(), WatchGroup(name="deep", paths=(deep,))),
+        (root.resolve(), WatchGroup(name="inbox", paths=(root,))),
     ]
     file_path = deep / "file.txt"
 
@@ -69,7 +69,7 @@ def test_resolve_group_matches_nested_path(tmp_path: Path) -> None:
 
 def test_resolve_group_returns_none_for_unmatched(tmp_path: Path) -> None:
     root = tmp_path / "inbox"
-    index = [((root).resolve(), WatchGroup(name="inbox", paths=[root]))]
+    index = [((root).resolve(), WatchGroup(name="inbox", paths=(root,)))]
     file_path = tmp_path / "outside" / "file.txt"
 
     group = _resolve_group(file_path, index)
@@ -88,9 +88,7 @@ def test_coalesce_prefers_deleted_when_added_and_deleted_for_missing_path(
 ) -> None:
     path = tmp_path / "churn.txt"
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.deleted, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.deleted, str(path))})
 
     assert result == [(Change.deleted, str(path))]
 
@@ -101,9 +99,7 @@ def test_coalesce_prefers_added_when_added_and_deleted_for_existing_path(
     path = tmp_path / "churn.txt"
     path.write_text("ok")
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.deleted, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.deleted, str(path))})
 
     assert result == [(Change.added, str(path))]
 
@@ -121,7 +117,7 @@ def test_coalesce_prefers_added_over_modified_for_same_path(tmp_path: Path) -> N
 def test_matches_filters_include_allows_and_blocks() -> None:
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[Path(".")], include=["*.txt"]),
+            WatchGroup(name="inbox", paths=(Path("."),), include=("*.txt",)),
         ]
     )
 
@@ -134,7 +130,7 @@ def test_matches_filters_include_allows_and_blocks() -> None:
 def test_matches_filters_exclude_blocks() -> None:
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[Path(".")], exclude=["*.tmp"]),
+            WatchGroup(name="inbox", paths=(Path("."),), exclude=("*.tmp",)),
         ]
     )
 
@@ -149,9 +145,9 @@ def test_matches_filters_combined() -> None:
         watch_groups=[
             WatchGroup(
                 name="inbox",
-                paths=[Path(".")],
-                include=["*.txt", "*.md"],
-                exclude=["secret.*"],
+                paths=(Path("."),),
+                include=("*.txt", "*.md"),
+                exclude=("secret.*",),
             ),
         ]
     )
@@ -166,7 +162,7 @@ def test_matches_filters_combined() -> None:
 def test_matches_filters_no_patterns_allows_all() -> None:
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[Path(".")]),
+            WatchGroup(name="inbox", paths=(Path("."),)),
         ]
     )
 
@@ -183,7 +179,7 @@ def test_scan_existing_files_creates_events(
     (watch_path / "a.txt").write_text("a")
     (watch_path / "b.md").write_text("b")
 
-    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])])
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=(watch_path,))])
     group_index = _build_group_index(cfg)
     dispatched: list[object] = []
 
@@ -219,9 +215,9 @@ def test_scan_existing_files_respects_filters(
         watch_groups=[
             WatchGroup(
                 name="inbox",
-                paths=[watch_path],
-                include=["*.txt", "*.tmp"],
-                exclude=["*.tmp"],
+                paths=(watch_path,),
+                include=("*.txt", "*.tmp"),
+                exclude=("*.tmp",),
             )
         ]
     )
@@ -244,13 +240,16 @@ def test_scan_existing_files_respects_filters(
 
     assert [event.path.name for event in dispatched] == ["a.txt"]
 
+
 def test_run_watcher_prints_summary_on_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     watch_path = tmp_path / "inbox"
     watch_path.mkdir()
 
-    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+    cfg = Config(
+        watch_groups=[WatchGroup(name="inbox", paths=(watch_path,))], plugins=[]
+    )
 
     class StubConsole:
         def __init__(self) -> None:
@@ -269,7 +268,9 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
 
     run_watcher(cfg, [], console)
 
-    assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+    assert any(
+        getattr(call, "title", None) == "Watch Summary" for call in console.calls
+    )
 
 
 def test_run_watcher_once_scans_only_selected_group(
@@ -284,8 +285,8 @@ def test_run_watcher_once_scans_only_selected_group(
 
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[inbox]),
-            WatchGroup(name="archive", paths=[archive]),
+            WatchGroup(name="inbox", paths=(inbox,)),
+            WatchGroup(name="archive", paths=(archive,)),
         ],
         plugins=[],
     )
@@ -317,8 +318,8 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
 
     cfg = Config(
         watch_groups=[
-            WatchGroup(name="inbox", paths=[first_root], include=["*.txt"]),
-            WatchGroup(name="inbox", paths=[second_root], include=["*.md"]),
+            WatchGroup(name="inbox", paths=(first_root,), include=("*.txt",)),
+            WatchGroup(name="inbox", paths=(second_root,), include=("*.md",)),
         ],
         plugins=[],
     )
