@@ -81,7 +81,9 @@ def test_validate_module_path_containment_rejects_unsafe(
     assert validate_module_path_containment(plugin_root, module_path) is None
 
 
-def test_validate_module_path_containment_rejects_symlink_escape(tmp_path: Path) -> None:
+def test_validate_module_path_containment_rejects_symlink_escape(
+    tmp_path: Path,
+) -> None:
     plugin_root = tmp_path / "nomnom-plugin-safe"
     plugin_root.mkdir()
 
