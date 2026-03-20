@@ -219,7 +219,7 @@ def test_plugin_install_runs_setup_for_new_plugin(
         fake_run,
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
     assert result.exit_code == 0
     assert plugin.setup_called is True
@@ -229,6 +229,7 @@ def test_plugin_install_runs_setup_for_new_plugin(
         "install",
         "--python",
         sys.executable,
+        "--",
         "nomnom-plugin-fresh",
     ]
     assert "Running setup() for plugin 'fresh'..." in result.output
@@ -242,14 +243,14 @@ def test_plugin_install_skips_setup_with_no_setup_flag(monkeypatch) -> None:
     monkeypatch.setattr(
         cli_module,
         "discover_new_plugins",
-        lambda _: (_ for _ in ()).throw(AssertionError("discover_new_plugins called")),
+        lambda known_names: [("fresh", object())],
     )
     monkeypatch.setattr(
         "subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh", "--no-setup"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh", "--no-setup"])
 
     assert result.exit_code == 0
     assert "Skipping plugin setup (--no-setup)" in result.output
@@ -273,7 +274,7 @@ def test_plugin_install_handles_setup_failure(monkeypatch) -> None:
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
     assert result.exit_code == 1
     assert "Setup failed for plugin 'fresh': boom" in result.output
@@ -298,7 +299,7 @@ def test_plugin_install_handles_keyboard_interrupt_during_setup(monkeypatch) -> 
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
     assert result.exit_code == 1
     assert "Setup cancelled for plugin 'fresh'." in result.output
@@ -314,7 +315,7 @@ def test_plugin_install_handles_no_new_plugins(monkeypatch) -> None:
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
     assert result.exit_code == 0
     assert "No new plugins detected after install; skipping setup." in result.output
@@ -341,7 +342,7 @@ def test_plugin_install_skips_plugin_without_setup(monkeypatch) -> None:
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr="", stdout=""),
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
     assert result.exit_code == 0
     assert "Plugin 'fresh' has no setup() method; skipping." in result.output
@@ -357,7 +358,7 @@ def test_plugin_install_handles_missing_uv(monkeypatch) -> None:
         lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError("uv")),
     )
 
-    result = runner.invoke(app, ["plugin-install", "nomnom-plugin-fresh"])
+    result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
     assert result.exit_code == 1
     assert "Installation failed: could not execute 'uv'" in result.output
@@ -380,7 +381,7 @@ def test_plugin_setup_runs_named_plugin_setup(monkeypatch) -> None:
         lambda: [("fresh", fresh), ("other", object())],
     )
 
-    result = runner.invoke(app, ["plugin-setup", "fresh"])
+    result = runner.invoke(app, ["plugin", "setup", "fresh"])
 
     assert result.exit_code == 0
     assert fresh.setup_called is True
@@ -406,7 +407,7 @@ def test_plugin_setup_supports_all_flag(monkeypatch) -> None:
         lambda: [("alpha", alpha), ("beta", beta)],
     )
 
-    result = runner.invoke(app, ["plugin-setup", "--all"])
+    result = runner.invoke(app, ["plugin", "setup", "--all"])
 
     assert result.exit_code == 0
     assert alpha.setup_called is True
@@ -424,7 +425,7 @@ def test_plugin_setup_errors_when_plugin_is_missing(monkeypatch) -> None:
         lambda: [("alpha", object())],
     )
 
-    result = runner.invoke(app, ["plugin-setup", "fresh"])
+    result = runner.invoke(app, ["plugin", "setup", "fresh"])
 
     assert result.exit_code == 1
     assert "Plugin 'fresh' was not found." in result.output
@@ -435,7 +436,7 @@ def test_plugin_setup_requires_name_or_all(monkeypatch) -> None:
 
     monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
 
-    result = runner.invoke(app, ["plugin-setup"])
+    result = runner.invoke(app, ["plugin", "setup"])
 
     assert result.exit_code == 1
     assert "Provide a plugin name or pass --all." in result.output
@@ -446,7 +447,7 @@ def test_plugin_setup_rejects_name_with_all(monkeypatch) -> None:
 
     monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
 
-    result = runner.invoke(app, ["plugin-setup", "fresh", "--all"])
+    result = runner.invoke(app, ["plugin", "setup", "fresh", "--all"])
 
     assert result.exit_code == 1
     assert "Choose either a plugin name or --all, not both." in result.output

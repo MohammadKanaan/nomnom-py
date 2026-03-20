@@ -4,7 +4,11 @@ import typer
 from rich.console import Console
 
 from nomnom.cli_commands import (
-    plugin_install_command,
+    plugin_add_command,
+    plugin_disable_command,
+    plugin_enable_command,
+    plugin_list_command,
+    plugin_remove_command,
     plugin_setup_command,
     run_setups_for_plugins,
     setup_command,
@@ -25,6 +29,11 @@ app = typer.Typer(
     help="Plugin-based file watcher CLI",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+plugin_app = typer.Typer(
+    help="Manage plugins",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
+app.add_typer(plugin_app, name="plugin")
 console = Console()
 
 app.command("create-plugin")(create_plugin)
@@ -94,19 +103,26 @@ def setup(
     )
 
 
-@app.command()
-def plugin_install(
+@plugin_app.command("add")
+def plugin_add(
     package: str = typer.Argument(help="Package name or git URL"),
     no_setup: bool = typer.Option(
         False,
         "--no-setup",
         help="Skip interactive plugin setup",
     ),
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
 ) -> None:
-    """Install a plugin package."""
-    plugin_install_command(
+    """Install and add a plugin to configuration."""
+    plugin_add_command(
         package=package,
         no_setup=no_setup,
+        config_path=config,
         get_installed_plugin_names_fn=get_installed_plugin_names,
         discover_new_plugins_fn=discover_new_plugins,
         run_setups_for_plugins_fn=lambda plugins: run_setups_for_plugins(
@@ -117,7 +133,77 @@ def plugin_install(
     )
 
 
-@app.command("plugin-setup")
+@plugin_app.command("remove")
+def plugin_remove(
+    package: str = typer.Argument(help="Plugin package name to remove"),
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+) -> None:
+    """Remove a plugin package and from configuration."""
+    plugin_remove_command(
+        package=package,
+        config_path=config,
+        get_installed_plugin_names_fn=get_installed_plugin_names,
+    )
+
+
+@plugin_app.command("disable")
+def plugin_disable(
+    plugin_name: str = typer.Argument(help="Plugin name to disable"),
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+) -> None:
+    """Disable a plugin in configuration."""
+    plugin_disable_command(
+        plugin_name=plugin_name,
+        config_path=config,
+    )
+
+
+@plugin_app.command("enable")
+def plugin_enable(
+    plugin_name: str = typer.Argument(help="Plugin name to enable"),
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+) -> None:
+    """Enable a plugin in configuration."""
+    plugin_enable_command(
+        plugin_name=plugin_name,
+        config_path=config,
+    )
+
+
+@plugin_app.command("list")
+def plugin_list(
+    config: Path = typer.Option(
+        "config.toml",
+        "--config",
+        "-c",
+        help="Path to TOML config file",
+    ),
+) -> None:
+    """List all available plugins and their status."""
+    plugin_list_command(
+        config_path=config,
+        console=console,
+        load_config_fn=load_config,
+        discover_plugins_fn=discover_plugins,
+    )
+
+
+@plugin_app.command("setup")
 def plugin_setup(
     name: str | None = typer.Argument(
         None,

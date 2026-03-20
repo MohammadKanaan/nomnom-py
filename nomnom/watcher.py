@@ -4,6 +4,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
 from watchfiles import Change, watch
 
 from nomnom.config import Config, WatchGroup
@@ -50,11 +51,8 @@ def _build_group_index(config: Config) -> list[GroupIndexEntry]:
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
     resolved = path.resolve(strict=False)
     for root, group in index:
-        try:
-            resolved.relative_to(root)
+        if resolved.is_relative_to(root):
             return group
-        except ValueError:
-            continue
     return None
 
 
@@ -128,8 +126,8 @@ def _scan_existing_files(
                 f"[dim]{timestamp}[/] "
                 f"[{color}]{symbol}[/] "
                 f"[{color}]{event.event_type.value.upper()}[/]  "
-                f"{path.name}  "
-                f"[dim]{watch_group.name}[/]"
+                f"{escape(path.name)}  "
+                f"[dim]{escape(watch_group.name)}[/]"
             )
 
             dispatch(event, plugins, dry_run=dry_run, stats=stats)
@@ -205,8 +203,8 @@ def run_watcher(
                     f"[dim]{timestamp}[/] "
                     f"[{color}]{symbol}[/] "
                     f"[{color}]{event_type.value.upper()}[/]  "
-                    f"{path.name}  "
-                    f"[dim]{watch_group.name}[/]"
+                    f"{escape(path.name)}  "
+                    f"[dim]{escape(watch_group.name)}[/]"
                 )
 
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)
