@@ -15,6 +15,7 @@ class WatchGroup:
 class PluginConfig:
     name: str
     priority: int = 50
+    enabled: bool = True
 
 
 @dataclass
@@ -40,6 +41,7 @@ def load_config(path: Path) -> Config:
         PluginConfig(
             name=p["name"],
             priority=p.get("priority", 50),
+            enabled=p.get("enabled", True),
         )
         for p in data.get("plugins", [])
     ]
