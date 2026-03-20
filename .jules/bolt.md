@@ -1,3 +1,3 @@
-## 2024-03-13 - Avoid redundant attribute access in plugin loops
-**Learning:** In tight rule-evaluation loops processing many plugins (like `nomnom-plugin-rules`), repeatedly accessing attributes on complex objects like `FileEvent` (specifically Enum properties like `event_type.value` and Path properties like `path.name`) causes unnecessary overhead.
-**Action:** Extract and cache primitive property values prior to the loop, then pass these cached values to evaluation methods to improve event processing throughput.
+## 2026-03-20 - Optimize File Change Coalescing
+**Learning:** Checking file existence using `Path.exists()` is a costly I/O operation. Performing this check for every file in a watch batch significantly impacts performance, especially when most changes (modifications, single additions/deletions) do not require it.
+**Action:** Always defer expensive I/O operations in loops to the most specific conditional blocks where they are strictly necessary.
