@@ -51,11 +51,8 @@ def _build_group_index(config: Config) -> list[GroupIndexEntry]:
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
     resolved = path.resolve(strict=False)
     for root, group in index:
-        try:
-            resolved.relative_to(root)
+        if resolved.is_relative_to(root):
             return group
-        except ValueError:
-            continue
     return None
 
 
