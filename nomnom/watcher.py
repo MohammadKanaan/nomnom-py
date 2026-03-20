@@ -72,9 +72,8 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
 
     coalesced: list[RawChange] = []
     for changed, change_types in by_path.items():
-        path_exists = Path(changed).exists()
-
         if Change.added in change_types and Change.deleted in change_types:
+            path_exists = Path(changed).exists()
             selected = Change.added if path_exists else Change.deleted
         elif Change.added in change_types:
             selected = Change.added
