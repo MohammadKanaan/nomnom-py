@@ -4,6 +4,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from rich.markup import escape
 from watchfiles import Change, watch
 
 from nomnom.config import Config, WatchGroup
@@ -129,8 +130,8 @@ def _scan_existing_files(
                 f"[dim]{timestamp}[/] "
                 f"[{color}]{symbol}[/] "
                 f"[{color}]{event.event_type.value.upper()}[/]  "
-                f"{path.name}  "
-                f"[dim]{watch_group.name}[/]"
+                f"{escape(path.name)}  "
+                f"[dim]{escape(watch_group.name)}[/]"
             )
 
             dispatch(event, plugins, dry_run=dry_run, stats=stats)
@@ -206,8 +207,8 @@ def run_watcher(
                     f"[dim]{timestamp}[/] "
                     f"[{color}]{symbol}[/] "
                     f"[{color}]{event_type.value.upper()}[/]  "
-                    f"{path.name}  "
-                    f"[dim]{watch_group.name}[/]"
+                    f"{escape(path.name)}  "
+                    f"[dim]{escape(watch_group.name)}[/]"
                 )
 
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)
