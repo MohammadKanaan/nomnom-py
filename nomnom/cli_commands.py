@@ -422,7 +422,8 @@ def plugin_remove_command(
 
     typer.echo(f"Removing {package}...")
     installed_before = get_installed_plugin_names_fn()
-    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, package]
+    # SECURITY: Use -- to separate options from positional arguments and prevent argument injection
+    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, "--", package]
 
     try:
         result = subprocess.run(
