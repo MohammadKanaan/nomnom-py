@@ -186,7 +186,7 @@ def setup_command(
                 }
                 for wg in cfg.watch_groups
             ]
-            existing_plugins = [{"name": p.name, "priority": p.priority} for p in cfg.plugins]
+            existing_plugins = [{"name": p.name, "priority": p.priority, "enabled": p.enabled} for p in cfg.plugins]
         except Exception as e:
             console.print(f"[red]Error loading config: {e}[/]")
             existing_watch_groups = []
@@ -268,7 +268,7 @@ def setup_command(
 
             name = Prompt.ask("Plugin name")
             priority = int(Prompt.ask("Priority (lower = higher priority)", default="50"))
-            plugins.append({"name": name, "priority": priority})
+            plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
                 break
@@ -388,6 +388,11 @@ def plugin_add_command(
 
     typer.echo("Plugin installed successfully.")
 
+    if no_setup:
+        typer.echo("Skipping plugin setup (--no-setup).")
+        typer.echo("Run 'nomnom watch' to use it.")
+        return
+
     new_plugins = discover_new_plugins_fn(installed_before)
 
     if not config_path.exists():
@@ -396,11 +401,6 @@ def plugin_add_command(
         for name, _ in new_plugins:
             _update_plugin_in_config(config_path, name, enabled=True)
             typer.echo(f"Added plugin '{name}' to {config_path} and enabled it.")
-
-    if no_setup:
-        typer.echo("Skipping plugin setup (--no-setup).")
-        typer.echo("Run 'nomnom watch' to use it.")
-        return
 
     if not new_plugins:
         typer.echo("No new plugins detected after install; skipping setup.")
