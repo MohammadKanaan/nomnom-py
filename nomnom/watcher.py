@@ -1,3 +1,4 @@
+import functools
 import logging
 from datetime import datetime
 from fnmatch import fnmatch
@@ -87,11 +88,17 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
     return sorted(coalesced, key=_change_sort_key)
 
 
+@functools.lru_cache(maxsize=1024)
+def _matches_patterns(name: str, patterns: tuple[str, ...]) -> bool:
+    """Cache fnmatch evaluations against multiple patterns to reduce overhead."""
+    return any(fnmatch(name, pattern) for pattern in patterns)
+
+
 def _matches_filters(path: Path, group: WatchGroup) -> bool:
-    if group.include and not any(fnmatch(path.name, pattern) for pattern in group.include):
+    if group.include and not _matches_patterns(path.name, group.include):
         return False
 
-    if group.exclude and any(fnmatch(path.name, pattern) for pattern in group.exclude):
+    if group.exclude and _matches_patterns(path.name, group.exclude):
         return False
 
     return True
@@ -145,9 +152,13 @@ def run_watcher(
     stats = WatchStats()
     active_watch_groups = cfg.watch_groups
     if once and once_watch_group is not None:
-        active_watch_groups = [group for group in cfg.watch_groups if group.name == once_watch_group]
+        active_watch_groups = [
+            group for group in cfg.watch_groups if group.name == once_watch_group
+        ]
 
-    all_paths = [path.resolve() for group in active_watch_groups for path in group.paths]
+    all_paths = [
+        path.resolve() for group in active_watch_groups for path in group.paths
+    ]
 
     # Filter out non-existent paths
     watch_paths = []
@@ -161,7 +172,9 @@ def run_watcher(
         logger.error("No valid paths to watch")
         return
 
-    group_index = _build_group_index(Config(watch_groups=active_watch_groups, plugins=cfg.plugins))
+    group_index = _build_group_index(
+        Config(watch_groups=active_watch_groups, plugins=cfg.plugins)
+    )
 
     if once:
         _scan_existing_files(
