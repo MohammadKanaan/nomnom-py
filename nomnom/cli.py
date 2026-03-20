@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -32,34 +33,44 @@ app.command("create-plugin")(create_plugin)
 
 @app.command()
 def watch(
-    once_watch_group: str | None = typer.Argument(
-        None,
-        metavar="[WATCH_GROUP]",
-        help="Watch group name to process in --once mode",
-    ),
-    config: Path = typer.Option(
-        "config.toml",
-        "--config",
-        "-c",
-        help="Path to TOML config file",
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Enable verbose logging",
-    ),
-    dry_run: bool = typer.Option(
-        False,
-        "--dry",
-        "--dry-run",
-        help="Show effects without executing",
-    ),
-    once: bool = typer.Option(
-        False,
-        "--once",
-        help="Process existing files once and exit",
-    ),
+    once_watch_group: Annotated[
+        str | None,
+        typer.Argument(
+            metavar="[WATCH_GROUP]",
+            help="Watch group name to process in --once mode",
+        ),
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to TOML config file",
+        ),
+    ] = Path("config.toml"),
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Enable verbose logging",
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry",
+            "--dry-run",
+            help="Show effects without executing",
+        ),
+    ] = False,
+    once: Annotated[
+        bool,
+        typer.Option(
+            "--once",
+            help="Process existing files once and exit",
+        ),
+    ] = False,
 ) -> None:
     """Watch configured folders and dispatch events to plugins."""
     watch_command(
@@ -78,12 +89,14 @@ def watch(
 
 @app.command()
 def setup(
-    config: Path = typer.Option(
-        "config.toml",
-        "--config",
-        "-c",
-        help="Path to TOML config file",
-    ),
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to TOML config file",
+        ),
+    ] = Path("config.toml"),
 ) -> None:
     """Interactive setup to create or update configuration."""
     setup_command(
@@ -96,12 +109,14 @@ def setup(
 
 @app.command()
 def plugin_install(
-    package: str = typer.Argument(help="Package name or git URL"),
-    no_setup: bool = typer.Option(
-        False,
-        "--no-setup",
-        help="Skip interactive plugin setup",
-    ),
+    package: Annotated[str, typer.Argument(help="Package name or git URL")],
+    no_setup: Annotated[
+        bool,
+        typer.Option(
+            "--no-setup",
+            help="Skip interactive plugin setup",
+        ),
+    ] = False,
 ) -> None:
     """Install a plugin package."""
     plugin_install_command(
@@ -119,15 +134,19 @@ def plugin_install(
 
 @app.command("plugin-setup")
 def plugin_setup(
-    name: str | None = typer.Argument(
-        None,
-        help="Plugin name to run setup for",
-    ),
-    all_plugins: bool = typer.Option(
-        False,
-        "--all",
-        help="Run setup for all discovered plugins",
-    ),
+    name: Annotated[
+        str | None,
+        typer.Argument(
+            help="Plugin name to run setup for",
+        ),
+    ] = None,
+    all_plugins: Annotated[
+        bool,
+        typer.Option(
+            "--all",
+            help="Run setup for all discovered plugins",
+        ),
+    ] = False,
 ) -> None:
     """Run setup() for one plugin or all discovered plugins."""
     plugin_setup_command(
