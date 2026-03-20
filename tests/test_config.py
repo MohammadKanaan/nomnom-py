@@ -176,8 +176,8 @@ exclude = ["*.tmp"]
 
     cfg = load_config(config_path)
 
-    assert cfg.watch_groups[0].include == ["*.txt", "*.md"]
-    assert cfg.watch_groups[0].exclude == ["*.tmp"]
+    assert cfg.watch_groups[0].include == ("*.txt", "*.md")
+    assert cfg.watch_groups[0].exclude == ("*.tmp",)
 
 
 def test_load_config_watch_group_filters_default_empty(tmp_path: Path) -> None:
@@ -193,5 +193,5 @@ paths = ["./inbox"]
 
     cfg = load_config(config_path)
 
-    assert cfg.watch_groups[0].include == []
-    assert cfg.watch_groups[0].exclude == []
+    assert cfg.watch_groups[0].include == ()
+    assert cfg.watch_groups[0].exclude == ()
