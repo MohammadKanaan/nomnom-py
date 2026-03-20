@@ -52,3 +52,8 @@ rules.toml
 
 # config
 config.toml
+
+# ai tools
+.jules/
+.codex/
+.conductor/
