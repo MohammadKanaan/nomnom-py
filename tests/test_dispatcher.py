@@ -234,9 +234,7 @@ def test_dispatch_records_stats_for_matches_and_effects(
     assert stats.effects_applied == 1
 
 
-def test_dispatch_records_stats_for_emitted_events(
-    make_event, stub_plugin_cls
-) -> None:
+def test_dispatch_records_stats_for_emitted_events(make_event, stub_plugin_cls) -> None:
     first = make_event(path=Path("/tmp/first.txt"))
     second = make_event(event_type=EventType.MODIFIED, path=Path("/tmp/second.txt"))
     plugin = stub_plugin_cls(matches_result=True, effects=[EmitEvent(event=second)])

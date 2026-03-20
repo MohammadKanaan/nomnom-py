@@ -50,6 +50,14 @@ def _build_group_index(config: Config) -> list[GroupIndexEntry]:
 
 
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
+    # Fast path: Most paths emitted by watchfiles or rglob are already absolute
+    # and direct descendants of the watch root. Skip expensive system calls.
+    for root, group in index:
+        if path.is_relative_to(root):
+            return group
+
+    # Slow path: The path might be a symlink or contain '..' that needs resolving
+    # to see if its real location falls under any of our watch roots.
     resolved = path.resolve(strict=False)
     for root, group in index:
         if resolved.is_relative_to(root):
