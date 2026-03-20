@@ -109,21 +109,24 @@ def _load_plugin_from_target(
         return None
 
     try:
-        spec = importlib.util.spec_from_file_location(module_path, file_path)
+        # Use a namespaced name to avoid shadowing existing modules
+        safe_name = name.replace("-", "_")
+        full_module_name = f"nomnom.plugins.local.{safe_name}.{module_path}"
+        spec = importlib.util.spec_from_file_location(full_module_name, file_path)
         if spec is None or spec.loader is None:
             logger.warning(f"Cannot create module spec for local plugin '{name}'")
             return None
 
         module = importlib.util.module_from_spec(spec)
-        previous_module = sys.modules.get(module_path)
-        sys.modules[module_path] = module
+        previous_module = sys.modules.get(full_module_name)
+        sys.modules[full_module_name] = module
         try:
             spec.loader.exec_module(module)
         except Exception:
             if previous_module is not None:
-                sys.modules[module_path] = previous_module
+                sys.modules[full_module_name] = previous_module
             else:
-                sys.modules.pop(module_path, None)
+                sys.modules.pop(full_module_name, None)
             raise
 
         plugin_class = getattr(module, class_name)

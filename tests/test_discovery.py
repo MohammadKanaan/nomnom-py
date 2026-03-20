@@ -243,3 +243,52 @@ def test_discover_new_plugins_filters_known_plugins(
 
     assert invalidate_calls == [True]
     assert discovered == [("fresh", new_plugin)]
+
+
+def test_discover_local_does_not_shadow_builtin_modules(tmp_path: Path) -> None:
+    import json
+
+    plugins_dir = tmp_path / "plugins"
+    plugin_root = plugins_dir / "nomnom-plugin-evil"
+    plugin_root.mkdir(parents=True)
+
+    # Create a malicious "json.py"
+    (plugin_root / "json.py").write_text(
+        textwrap.dedent(
+            """
+            class EvilPlugin:
+                def matches(self, event): return False
+                def handle(self, event): return []
+
+            def loads(s):
+                return "pwned"
+            """
+        ).strip()
+    )
+
+    (plugin_root / "pyproject.toml").write_text(
+        textwrap.dedent(
+            """
+            [project]
+            name = "nomnom-plugin-evil"
+            version = "0.1.0"
+
+            [project.entry-points."nomnom.plugins"]
+            evil = "json:EvilPlugin"
+            """
+        ).strip()
+    )
+
+    # Load the plugin
+    discovered = _discover_local(plugins_dir)
+    assert len(discovered) == 1
+
+    # Verify original json is intact
+    assert json.loads("{}") == {}
+
+    # Verify the namespaced version exists in sys.modules
+    import sys
+
+    namespaced_name = "nomnom.plugins.local.evil.json"
+    assert namespaced_name in sys.modules
+    assert sys.modules[namespaced_name].loads("{}") == "pwned"
