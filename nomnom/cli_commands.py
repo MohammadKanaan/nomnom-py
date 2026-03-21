@@ -5,6 +5,7 @@ import typer
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from rich.markup import escape
 
 
 def run_setups_for_plugins(
@@ -65,8 +66,8 @@ def watch_command(
         if config != Path("config.toml"):
             setup_cmd += f" --config {config}"
         console.print(
-            f"[red]Config file not found: {config}[/]\n"
-            f"[yellow]Run `{setup_cmd}` to create one.[/]"
+            f"[red]Config file not found: {escape(str(config))}[/]\n"
+            f"[yellow]Run `{escape(setup_cmd)}` to create one.[/]"
         )
         raise typer.Exit(code=1)
 
@@ -78,10 +79,12 @@ def watch_command(
     if once and once_watch_group:
         available_groups = {group.name for group in cfg.watch_groups}
         if once_watch_group not in available_groups:
-            available = ", ".join(sorted(available_groups)) if available_groups else "(none)"
+            available = (
+                ", ".join(sorted(available_groups)) if available_groups else "(none)"
+            )
             console.print(
-                f"[red]Watch group not found: {once_watch_group}[/]\n"
-                f"[yellow]Available groups: {available}[/]"
+                f"[red]Watch group not found: {escape(once_watch_group)}[/]\n"
+                f"[yellow]Available groups: {escape(available)}[/]"
             )
             raise typer.Exit(code=1)
 
@@ -97,19 +100,21 @@ def watch_command(
 
     banner = Panel(
         "[bold cyan]nomnom[/] v0.1.0\n"
-        f"[dim]Config: {config}[/]"
+        f"[dim]Config: {escape(str(config))}[/]"
         + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",
     )
     console.print(banner)
 
-    plugin_table = Table(title=f"Plugins ({len(plugins)})", show_header=len(plugins) > 0)
+    plugin_table = Table(
+        title=f"Plugins ({len(plugins)})", show_header=len(plugins) > 0
+    )
     plugin_table.add_column("Name", style="magenta")
     plugin_table.add_column("Priority", justify="right", style="dim")
     priority_map = {p.name: p.priority for p in cfg.plugins}
     for name, _ in plugins:
         priority = priority_map.get(name, 50)
-        plugin_table.add_row(name, str(priority))
+        plugin_table.add_row(escape(name), str(priority))
     console.print(plugin_table)
 
     watch_table = Table(title=f"Watch Groups ({len(cfg.watch_groups)})")
@@ -123,9 +128,9 @@ def watch_command(
         if wg.exclude:
             filters.append(f"exclude={','.join(wg.exclude)}")
         watch_table.add_row(
-            wg.name,
-            ", ".join(str(p) for p in wg.paths),
-            "; ".join(filters) if filters else "-",
+            escape(wg.name),
+            escape(", ".join(str(p) for p in wg.paths)),
+            escape("; ".join(filters)) if filters else "-",
         )
     console.print(watch_table)
 
@@ -133,7 +138,7 @@ def watch_command(
         if once_watch_group:
             console.print(
                 f"\n[dim]One-shot mode: scanning existing files in group "
-                f"'{once_watch_group}'...[/]\n"
+                f"'{escape(once_watch_group)}'...[/]\n"
             )
         else:
             console.print("\n[dim]One-shot mode: scanning existing files...[/]\n")
@@ -170,7 +175,7 @@ def setup_command(
     )
 
     if config.exists():
-        console.print(f"\n[yellow]Found existing config at {config}[/]")
+        console.print(f"\n[yellow]Found existing config at {escape(str(config))}[/]")
         if not Confirm.ask("Do you want to edit it?", default=True):
             console.print("[dim]Setup cancelled.[/]")
             return
@@ -186,13 +191,16 @@ def setup_command(
                 }
                 for wg in cfg.watch_groups
             ]
-            existing_plugins = [{"name": p.name, "priority": p.priority, "enabled": p.enabled} for p in cfg.plugins]
+            existing_plugins = [
+                {"name": p.name, "priority": p.priority, "enabled": p.enabled}
+                for p in cfg.plugins
+            ]
         except Exception as e:
-            console.print(f"[red]Error loading config: {e}[/]")
+            console.print(f"[red]Error loading config: {escape(str(e))}[/]")
             existing_watch_groups = []
             existing_plugins = []
     else:
-        console.print(f"\n[green]Creating new config at {config}[/]")
+        console.print(f"\n[green]Creating new config at {escape(str(config))}[/]")
         existing_watch_groups = []
         existing_plugins = []
 
@@ -202,7 +210,9 @@ def setup_command(
     if existing_watch_groups:
         console.print("[dim]Existing watch groups:[/]")
         for i, wg in enumerate(existing_watch_groups, 1):
-            console.print(f"  {i}. [green]{wg['name']}[/]: {', '.join(wg['paths'])}")
+            console.print(
+                f"  {i}. [green]{escape(wg['name'])}[/]: {escape(', '.join(wg['paths']))}"
+            )
 
         if Confirm.ask("Keep existing watch groups?", default=True):
             watch_groups.extend(existing_watch_groups)
@@ -243,7 +253,7 @@ def setup_command(
     if discovered:
         console.print(f"\n[dim]Discovered {len(discovered)} plugin(s):[/]")
         for plugin_name, _ in discovered:
-            console.print(f"  • [magenta]{plugin_name}[/]")
+            console.print(f"  • [magenta]{escape(plugin_name)}[/]")
 
     plugins = []
 
@@ -251,7 +261,7 @@ def setup_command(
         console.print("\n[dim]Existing plugin configurations:[/]")
         for i, plugin in enumerate(existing_plugins, 1):
             console.print(
-                f"  {i}. [magenta]{plugin['name']}[/] (priority: {plugin['priority']})"
+                f"  {i}. [magenta]{escape(plugin['name'])}[/] (priority: {plugin['priority']})"
             )
 
         if Confirm.ask("Keep existing plugin configurations?", default=True):
@@ -264,10 +274,12 @@ def setup_command(
             if available_plugins:
                 console.print("\n[dim]Available plugins:[/]")
                 for plugin_name in available_plugins:
-                    console.print(f"  • {plugin_name}")
+                    console.print(f"  • {escape(plugin_name)}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default="50"))
+            priority = int(
+                Prompt.ask("Priority (lower = higher priority)", default="50")
+            )
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
@@ -278,17 +290,19 @@ def setup_command(
     try:
         with open(config, "wb") as f:
             tomli_w.dump(config_data, f)
-        console.print(f"\n[bold green]✓[/] Configuration saved to {config}")
+        console.print(
+            f"\n[bold green]✓[/] Configuration saved to {escape(str(config))}"
+        )
 
         summary = Table(title="Configuration Summary")
         summary.add_column("Section", style="cyan")
         summary.add_column("Details", style="dim")
-        summary.add_row("Watch Groups", str(len(watch_groups)))
-        summary.add_row("Plugins", str(len(plugins)))
+        summary.add_row("Watch Groups", escape(str(len(watch_groups))))
+        summary.add_row("Plugins", escape(str(len(plugins))))
         console.print(summary)
 
     except Exception as e:
-        console.print(f"[red]Error saving config: {e}[/]")
+        console.print(f"[red]Error saving config: {escape(str(e))}[/]")
 
 
 def _warn_missing_config(config_path: Path, is_error: bool = False) -> None:
@@ -300,7 +314,9 @@ def _warn_missing_config(config_path: Path, is_error: bool = False) -> None:
             typer.echo("Run 'nomnom setup' to create one.")
 
 
-def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool) -> bool:
+def _update_plugin_in_config(
+    config_path: Path, plugin_name: str, enabled: bool
+) -> bool:
     """Helper to update the enabled status of a plugin in config.toml."""
     import tomli_w
     import tomllib
@@ -512,7 +528,7 @@ def plugin_list_command(
             for p in cfg.plugins:
                 config_plugins[p.name] = p
         except Exception as e:
-            console.print(f"[red]Error loading config: {e}[/]")
+            console.print(f"[red]Error loading config: {escape(str(e))}[/]")
 
     all_names = discovered_names.union(config_plugins.keys())
 
@@ -535,7 +551,7 @@ def plugin_list_command(
             if not p_config.enabled:
                 status_text = "[red]Disabled[/]"
 
-        table.add_row(name, status_text, priority_text, installed_text)
+        table.add_row(escape(name), status_text, priority_text, installed_text)
 
     console.print(table)
 
@@ -560,7 +576,9 @@ def plugin_setup_command(
         run_setups_for_plugins_fn(discovered)
         return
 
-    selected_plugins = [(plugin_name, p) for plugin_name, p in discovered if plugin_name == name]
+    selected_plugins = [
+        (plugin_name, p) for plugin_name, p in discovered if plugin_name == name
+    ]
     if not selected_plugins:
         typer.echo(f"Plugin '{name}' was not found.")
         raise typer.Exit(1)

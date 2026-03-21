@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from time import monotonic
 
 from rich.table import Table
+from rich.markup import escape
 
 
 @dataclass
@@ -38,6 +39,6 @@ class WatchStats:
 
         if self.plugin_match_counts:
             for name, count in sorted(self.plugin_match_counts.items()):
-                table.add_row(f"Plugin matches: {name}", str(count))
+                table.add_row(f"Plugin matches: {escape(name)}", str(count))
 
         console.print(table)

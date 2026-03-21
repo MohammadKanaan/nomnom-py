@@ -2,6 +2,7 @@ import typer
 import tomli_w
 from rich.console import Console
 from rich.panel import Panel
+from rich.markup import escape
 
 from nomnom.discovery import PLUGINS_DIR
 from nomnom.validation import validate_plugin_name
@@ -18,7 +19,7 @@ def create_plugin(
     try:
         slug = validate_plugin_name(name)
     except ValueError as e:
-        console.print(f"[red]Invalid plugin name:[/] {e}")
+        console.print(f"[red]Invalid plugin name:[/] {escape(str(e))}")
         console.print(
             "[yellow]Plugin names should use letters, numbers, and hyphens[/]\n"
             "[dim]Examples: 'transcribe', 'pdf-parser', 'image-resizer'[/]"
@@ -32,7 +33,7 @@ def create_plugin(
     module_dir = plugin_dir / module_name
 
     if plugin_dir.exists():
-        console.print(f"[red]Plugin already exists at {plugin_dir}[/]")
+        console.print(f"[red]Plugin already exists at {escape(str(plugin_dir))}[/]")
         raise typer.Exit(1)
 
     # Create directories
@@ -93,13 +94,13 @@ class {class_name}:
     # Output
     console.print(
         Panel(
-            f"[bold green]Created plugin:[/] {package_name}\n\n"
-            f"  [dim]{plugin_dir / 'pyproject.toml'}[/]\n"
-            f"  [dim]{module_dir / '__init__.py'}[/]\n\n"
-            f"Edit [magenta]{class_name}[/] in [cyan]{module_dir / '__init__.py'}[/]\n"
+            f"[bold green]Created plugin:[/] {escape(package_name)}\n\n"
+            f"  [dim]{escape(str(plugin_dir / 'pyproject.toml'))}[/]\n"
+            f"  [dim]{escape(str(module_dir / '__init__.py'))}[/]\n\n"
+            f"Edit [magenta]{escape(class_name)}[/] in [cyan]{escape(str(module_dir / '__init__.py'))}[/]\n"
             f"to define your optional setup(), matches(), and handle() logic.\n\n"
             f"Add to your config.toml:\n"
-            f'  [dim][[plugins]]\n  name = "{slug}"\n  priority = 50[/]',
+            f'  [dim][[plugins]]\n  name = "{escape(slug)}"\n  priority = 50[/]',
             title="nomnom create-plugin",
             border_style="green",
         )
