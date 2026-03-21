@@ -5,13 +5,16 @@ import typer
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from typing import Callable
+
+from nomnom.plugin import Plugin
 
 
 def run_setups_for_plugins(
-    plugins: list[tuple[str, object]],
+    plugins: list[tuple[str, Plugin]],
     *,
-    has_setup_fn,
-    run_plugin_setup_fn,
+    has_setup_fn: Callable[[Plugin], bool],
+    run_plugin_setup_fn: Callable[[Plugin], None],
 ) -> None:
     setup_ran = False
     setup_failed = False
