@@ -50,10 +50,17 @@ def _build_group_index(config: Config) -> list[GroupIndexEntry]:
 
 
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
-    resolved = path.resolve(strict=False)
+    # Fast path: check if path is already relative to a root without resolving
     for root, group in index:
-        if resolved.is_relative_to(root):
+        if path.is_relative_to(root):
             return group
+
+    # Fallback: resolve path to handle symlinks and indirect relativity
+    resolved = path.resolve(strict=False)
+    if resolved != path:
+        for root, group in index:
+            if resolved.is_relative_to(root):
+                return group
     return None
 
 

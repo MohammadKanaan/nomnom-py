@@ -1,7 +1,14 @@
 import logging
 import shutil
 
-from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, Effect, MoveFile
+from nomnom.effects import (
+    CreateFile,
+    DeleteFile,
+    EditAction,
+    EditFile,
+    Effect,
+    MoveFile,
+)
 
 logger = logging.getLogger(__name__)
 
