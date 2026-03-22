@@ -130,6 +130,27 @@ def test_execute_edit_file_prepend_empty_content(tmp_path: Path) -> None:
     assert path.read_bytes() == b"existing"
 
 
+def test_execute_create_file_atomic(tmp_path: Path) -> None:
+    path = tmp_path / "atomic.txt"
+
+    execute(CreateFile(path=path, content=b"atomic content"))
+
+    assert path.read_bytes() == b"atomic content"
+    # No leftover temp files
+    assert len(list(tmp_path.iterdir())) == 1
+
+
+def test_execute_edit_file_atomic(tmp_path: Path) -> None:
+    path = tmp_path / "file.txt"
+    path.write_bytes(b"original")
+
+    execute(EditFile(path=path, action=EditAction.APPEND, content=b" appended"))
+
+    assert path.read_bytes() == b"original appended"
+    # No leftover temp files
+    assert len(list(tmp_path.iterdir())) == 1
+
+
 def test_execute_unknown_effect_raises_type_error() -> None:
     with pytest.raises(TypeError):
         execute("unexpected")

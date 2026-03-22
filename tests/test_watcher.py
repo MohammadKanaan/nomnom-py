@@ -341,3 +341,56 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
     run_watcher(cfg, [], StubConsole())
 
     assert len(emitted) == 1
+
+
+def test_coalesce_created_unknown_path_stays_created(tmp_path: Path) -> None:
+    path = str(tmp_path / "new.txt")
+    known: set[str] = set()
+
+    result = _coalesce_changes({(Change.added, path)}, known)
+
+    assert result == [(Change.added, path)]
+    assert path in known
+
+
+def test_coalesce_created_known_path_downgrades_to_modified(tmp_path: Path) -> None:
+    path = str(tmp_path / "existing.txt")
+    known: set[str] = {path}
+
+    result = _coalesce_changes({(Change.added, path)}, known)
+
+    assert result == [(Change.modified, path)]
+
+
+def test_coalesce_deleted_removes_from_known_paths(tmp_path: Path) -> None:
+    path = str(tmp_path / "gone.txt")
+    known: set[str] = {path}
+
+    _coalesce_changes({(Change.deleted, path)}, known)
+
+    assert path not in known
+
+
+def test_coalesce_deleted_then_created_stays_created_across_batches(tmp_path: Path) -> None:
+    path = str(tmp_path / "cycled.txt")
+    known: set[str] = {path}
+
+    _coalesce_changes({(Change.deleted, path)}, known)
+    result = _coalesce_changes({(Change.added, path)}, known)
+
+    assert result == [(Change.added, path)]
+    assert path in known
+
+
+def test_coalesce_known_paths_tracking_across_batches(tmp_path: Path) -> None:
+    path = str(tmp_path / "note.txt")
+    known: set[str] = set()
+
+    # First batch: file created → CREATED, added to known_paths
+    result1 = _coalesce_changes({(Change.added, path)}, known)
+    assert result1 == [(Change.added, path)]
+    assert path in known
+
+    # Second batch: atomic write → CREATED downgraded to MODIFIED
+    result2 = _coalesce_changes({(Change.added, path)}, known)
+    assert result2 == [(Change.modified, path)]

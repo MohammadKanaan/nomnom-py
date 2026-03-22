@@ -63,8 +63,15 @@ def _change_sort_key(item: RawChange) -> tuple[str, int]:
     return str(changed), int(change_type)
 
 
-def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
+def _coalesce_changes(
+    changes: set[RawChange],
+    known_paths: set[str] | None = None,
+) -> list[RawChange]:
     """Reduce noisy watchfiles batches to one effective change per path."""
+    if known_paths is None:
+        known_paths = set()
+
+    # Standard per-path coalescing
     by_path: dict[str, set[Change]] = {}
     for change_type, changed in changes:
         by_path.setdefault(changed, set()).add(change_type)
@@ -82,6 +89,15 @@ def _coalesce_changes(changes: set[RawChange]) -> list[RawChange]:
             selected = Change.modified
         else:
             continue
+
+        # Downgrade CREATED → MODIFIED if path is already known (atomic write from any source)
+        if selected == Change.added and changed in known_paths:
+            selected = Change.modified
+        elif selected == Change.added:
+            known_paths.add(changed)
+
+        if selected == Change.deleted:
+            known_paths.discard(changed)
 
         coalesced.append((selected, changed))
 
@@ -189,8 +205,9 @@ def run_watcher(
         return
 
     try:
+        known_paths: set[str] = set()
         for raw_changes in watch(*watch_paths):
-            for change_type, changed in _coalesce_changes(raw_changes):
+            for change_type, changed in _coalesce_changes(raw_changes, known_paths):
                 event_type = CHANGE_MAP.get(change_type)
                 if event_type is None:
                     continue
