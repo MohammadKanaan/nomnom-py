@@ -41,9 +41,9 @@ def _watch_root_specificity(entry: GroupIndexEntry) -> int:
     return len(root_path.parts)
 
 
-def _build_group_index(config: Config) -> list[GroupIndexEntry]:
+def _build_group_index(watch_groups: list[WatchGroup]) -> list[GroupIndexEntry]:
     index: list[GroupIndexEntry] = []
-    for group in config.watch_groups:
+    for group in watch_groups:
         for path in group.paths:
             index.append((path.resolve(), group))
     return sorted(index, key=_watch_root_specificity, reverse=True)
@@ -172,9 +172,7 @@ def run_watcher(
         logger.error("No valid paths to watch")
         return
 
-    group_index = _build_group_index(
-        Config(watch_groups=active_watch_groups, plugins=cfg.plugins)
-    )
+    group_index = _build_group_index(active_watch_groups)
 
     if once:
         _scan_existing_files(

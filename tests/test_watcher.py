@@ -28,7 +28,7 @@ def test_build_group_index_creates_entries(tmp_path: Path) -> None:
         ]
     )
 
-    index = _build_group_index(config)
+    index = _build_group_index(config.watch_groups)
     pairs = {(path, group.name) for path, group in index}
 
     assert (first.resolve(), "inbox") in pairs
@@ -46,7 +46,7 @@ def test_build_group_index_sorts_longest_first(tmp_path: Path) -> None:
         ]
     )
 
-    index = _build_group_index(config)
+    index = _build_group_index(config.watch_groups)
 
     assert index[0] == (deep.resolve(), config.watch_groups[1])
     assert index[1] == (shallow.resolve(), config.watch_groups[0])
@@ -184,7 +184,7 @@ def test_scan_existing_files_creates_events(
     (watch_path / "b.md").write_text("b")
 
     cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])])
-    group_index = _build_group_index(cfg)
+    group_index = _build_group_index(cfg.watch_groups)
     dispatched: list[object] = []
 
     def fake_dispatch(event, plugins, **kwargs) -> None:
@@ -225,7 +225,7 @@ def test_scan_existing_files_respects_filters(
             )
         ]
     )
-    group_index = _build_group_index(cfg)
+    group_index = _build_group_index(cfg.watch_groups)
     dispatched: list[object] = []
 
     def fake_dispatch(event, plugins, **kwargs) -> None:
