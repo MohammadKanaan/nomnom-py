@@ -5,6 +5,7 @@ import typer
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from rich.logging import RichHandler
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
 
@@ -58,6 +59,15 @@ def watch_command(
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(name)s — %(levelname)s — %(message)s",
+        handlers=[
+            RichHandler(
+                console=console,
+                show_time=False,
+                show_path=False,
+                markup=True,
+            )
+        ],
+        force=True,
     )
     if not verbose:
         logging.getLogger("watchfiles").setLevel(logging.WARNING)

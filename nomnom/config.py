@@ -85,9 +85,21 @@ def load_config(path: Path) -> Config:
             if normalized_a.is_relative_to(normalized_b) or normalized_b.is_relative_to(
                 normalized_a
             ):
+                common_path = (
+                    normalized_b
+                    if normalized_a.is_relative_to(normalized_b)
+                    else normalized_a
+                )
                 logger.warning(
-                    "Overlapping watch paths detected between groups '%s' and '%s': %s, %s",
-                    name_a, name_b, path_a, path_b,
+                    "Overlapping watch paths detected between groups '%s' and '%s'. "
+                    "Common path: %s. %s path: %s. %s path: %s.",
+                    name_a,
+                    name_b,
+                    common_path,
+                    name_a,
+                    path_a,
+                    name_b,
+                    path_b,
                 )
 
     return Config(watch_groups=watch_groups, plugins=plugins)

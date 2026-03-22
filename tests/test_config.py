@@ -217,7 +217,6 @@ paths = ["{abs_path}"]
 
 
 def test_load_config_overlap_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    child_dir = tmp_path / "inbox" / "sub"
     config_path = tmp_path / "config.toml"
     config_path.write_text(
         """
@@ -236,6 +235,9 @@ paths = ["./inbox/sub"]
         load_config(config_path)
 
     assert "Overlapping watch paths" in caplog.text
+    assert f"Common path: {tmp_path / 'inbox'}" in caplog.text
+    assert f"parent path: {tmp_path / 'inbox'}" in caplog.text
+    assert f"child path: {tmp_path / 'inbox' / 'sub'}" in caplog.text
     assert "parent" in caplog.text
     assert "child" in caplog.text
 
