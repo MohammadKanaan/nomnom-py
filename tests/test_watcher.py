@@ -272,6 +272,33 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
     assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
 
 
+def test_run_watcher_prints_summary_on_oserror(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "inbox"
+    watch_path.mkdir()
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+
+    class StubConsole:
+        def __init__(self) -> None:
+            self.calls: list[object] = []
+
+        def print(self, value) -> None:
+            self.calls.append(value)
+
+    def oserror_watch(*_args):
+        raise OSError("inotify limit reached")
+        yield  # pragma: no cover
+
+    console = StubConsole()
+    monkeypatch.setattr("nomnom.watcher.watch", oserror_watch)
+
+    run_watcher(cfg, [], console)
+
+    assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+
+
 def test_run_watcher_once_scans_only_selected_group(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

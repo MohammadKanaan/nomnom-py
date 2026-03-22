@@ -216,5 +216,7 @@ def run_watcher(
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)
     except KeyboardInterrupt:
         pass
+    except OSError as exc:
+        logger.warning("Filesystem watcher encountered an unrecoverable error: %s", exc)
     finally:
         stats.print_summary(console)
