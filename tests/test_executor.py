@@ -32,6 +32,22 @@ def test_execute_move_file_missing_source_is_noop(
     assert "Move skipped; source missing" in caplog.text
 
 
+def test_execute_move_file_overwrites_with_warning(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    source = tmp_path / "src.txt"
+    source.write_text("new")
+    destination = tmp_path / "dst.txt"
+    destination.write_text("old")
+    caplog.set_level("WARNING")
+
+    execute(MoveFile(source=source, destination=destination, overwrite=True))
+
+    assert destination.read_text() == "new"
+    assert "overwriting" in caplog.text
+
+
 def test_execute_delete_file(tmp_path: Path) -> None:
     path = tmp_path / "to-delete.txt"
     path.write_text("bye")
