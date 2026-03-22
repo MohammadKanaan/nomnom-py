@@ -6,6 +6,10 @@ from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, Effect,
 logger = logging.getLogger(__name__)
 
 
+class EffectSkipped(Exception):
+    """Raised when an effect is intentionally skipped (e.g. missing source/target)."""
+
+
 def execute(effect: Effect) -> bool:
     match effect:
         case MoveFile(source=src, destination=dst):
