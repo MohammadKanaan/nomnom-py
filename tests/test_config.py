@@ -216,7 +216,9 @@ paths = ["{abs_path}"]
     assert cfg.watch_groups[0].paths == [abs_path]
 
 
-def test_load_config_overlap_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_load_config_overlap_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
     config_path = tmp_path / "config.toml"
     config_path.write_text(
         """

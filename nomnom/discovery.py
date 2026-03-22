@@ -141,4 +141,6 @@ def prioritize_plugins(
     config: Config,
 ) -> list[tuple[str, Plugin]]:
     priority_map = {p.name: p.priority for p in config.plugins}
-    return sorted(plugins, key=lambda p: priority_map.get(p[0], DEFAULT_PLUGIN_PRIORITY))
+    return sorted(
+        plugins, key=lambda p: priority_map.get(p[0], DEFAULT_PLUGIN_PRIORITY)
+    )

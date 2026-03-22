@@ -45,7 +45,10 @@ class RulesPlugin:
         event_type_value = event.event_type.value
         watch_group = event.watch_group
         path_name = event.path.name
-        return any(rule.matches(event_type_value, watch_group, path_name) for rule in self._rules)
+        return any(
+            rule.matches(event_type_value, watch_group, path_name)
+            for rule in self._rules
+        )
 
     def handle(self, event: FileEvent) -> list[Effect]:
         effects: list[Effect] = []

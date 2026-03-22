@@ -50,6 +50,12 @@ def _build_group_index(watch_groups: list[WatchGroup]) -> list[GroupIndexEntry]:
 
 
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
+    # Fast path: check in-memory without resolving (avoids os.stat/os.readlink overhead)
+    for root, group in index:
+        if path.is_relative_to(root):
+            return group
+
+    # Fallback to resolving the path if necessary
     resolved = path.resolve(strict=False)
     for root, group in index:
         if resolved.is_relative_to(root):

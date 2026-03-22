@@ -47,9 +47,13 @@ def load_config(path: Path) -> Config:
         raise ConfigError("Config is missing required 'watch' key")
     for i, w in enumerate(data["watch"]):
         if "name" not in w:
-            raise ConfigError(f"Watch group at index {i} is missing required 'name' key")
+            raise ConfigError(
+                f"Watch group at index {i} is missing required 'name' key"
+            )
         if "paths" not in w:
-            raise ConfigError(f"Watch group '{w['name']}' is missing required 'paths' key")
+            raise ConfigError(
+                f"Watch group '{w['name']}' is missing required 'paths' key"
+            )
 
     config_dir = path.parent.resolve()
 
@@ -57,7 +61,8 @@ def load_config(path: Path) -> Config:
         WatchGroup(
             name=w["name"],
             paths=[
-                config_dir / Path(p).expanduser() if not Path(p).expanduser().is_absolute()
+                config_dir / Path(p).expanduser()
+                if not Path(p).expanduser().is_absolute()
                 else Path(p).expanduser()
                 for p in w["paths"]
             ],
@@ -79,7 +84,7 @@ def load_config(path: Path) -> Config:
         (wg.name, p, p.resolve(strict=False)) for wg in watch_groups for p in wg.paths
     ]
     for i, (name_a, path_a, normalized_a) in enumerate(all_paths):
-        for name_b, path_b, normalized_b in all_paths[i + 1:]:
+        for name_b, path_b, normalized_b in all_paths[i + 1 :]:
             if name_a == name_b:
                 continue
             if normalized_a.is_relative_to(normalized_b) or normalized_b.is_relative_to(

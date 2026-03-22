@@ -88,9 +88,7 @@ def test_coalesce_prefers_deleted_when_added_and_deleted_for_missing_path(
 ) -> None:
     path = tmp_path / "churn.txt"
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.deleted, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.deleted, str(path))})
 
     assert result == [(Change.deleted, str(path))]
 
@@ -101,9 +99,7 @@ def test_coalesce_prefers_added_when_added_and_deleted_for_existing_path(
     path = tmp_path / "churn.txt"
     path.write_text("ok")
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.deleted, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.deleted, str(path))})
 
     assert result == [(Change.added, str(path))]
 
@@ -244,13 +240,16 @@ def test_scan_existing_files_respects_filters(
 
     assert [event.path.name for event in dispatched] == ["a.txt"]
 
+
 def test_run_watcher_prints_summary_on_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     watch_path = tmp_path / "inbox"
     watch_path.mkdir()
 
-    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+    cfg = Config(
+        watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[]
+    )
 
     class StubConsole:
         def __init__(self) -> None:
@@ -269,7 +268,9 @@ def test_run_watcher_prints_summary_on_keyboard_interrupt(
 
     run_watcher(cfg, [], console)
 
-    assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+    assert any(
+        getattr(call, "title", None) == "Watch Summary" for call in console.calls
+    )
 
 
 def test_run_watcher_prints_summary_on_oserror(
@@ -278,7 +279,9 @@ def test_run_watcher_prints_summary_on_oserror(
     watch_path = tmp_path / "inbox"
     watch_path.mkdir()
 
-    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+    cfg = Config(
+        watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[]
+    )
 
     class StubConsole:
         def __init__(self) -> None:
@@ -296,7 +299,9 @@ def test_run_watcher_prints_summary_on_oserror(
 
     run_watcher(cfg, [], console)
 
-    assert any(getattr(call, "title", None) == "Watch Summary" for call in console.calls)
+    assert any(
+        getattr(call, "title", None) == "Watch Summary" for call in console.calls
+    )
 
 
 def test_run_watcher_once_scans_only_selected_group(
