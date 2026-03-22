@@ -25,6 +25,9 @@ def execute(effect: Effect) -> None:
             shutil.move(src, dst)
 
         case DeleteFile(path=path):
+            if not path.exists():
+                logger.warning(f"Delete skipped; file missing: {path}")
+                raise EffectSkipped(f"Delete skipped; file missing: {path}")
             logger.info(f"Deleting {path}")
             path.unlink()
 

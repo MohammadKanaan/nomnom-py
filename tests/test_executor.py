@@ -41,6 +41,19 @@ def test_execute_delete_file(tmp_path: Path) -> None:
     assert not path.exists()
 
 
+def test_execute_delete_file_missing_is_skipped(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    path = tmp_path / "nonexistent.txt"
+    caplog.set_level("WARNING")
+
+    with pytest.raises(EffectSkipped):
+        execute(DeleteFile(path=path))
+
+    assert "Delete skipped; file missing" in caplog.text
+
+
 def test_execute_create_file(tmp_path: Path) -> None:
     path = tmp_path / "a" / "b" / "new.txt"
 
