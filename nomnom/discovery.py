@@ -5,6 +5,7 @@ import sys
 import tomllib
 from importlib.metadata import entry_points
 from pathlib import Path
+from typing import cast
 
 from nomnom.config import Config
 from nomnom.plugin import Plugin
@@ -127,7 +128,7 @@ def _load_plugin_from_target(
             raise
 
         plugin_class = getattr(module, class_name)
-        plugin = plugin_class()
+        plugin = cast(Plugin, plugin_class())
         logger.info(f"Loaded local plugin: {name}")
         return plugin
 

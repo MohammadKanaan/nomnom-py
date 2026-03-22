@@ -13,6 +13,8 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "ruff>=0.4",
+    "mypy>=1.10",
 ]
 
 [project.scripts]
@@ -24,3 +26,15 @@ build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["B008"]  # typer.Option() in function signatures is idiomatic Typer usage
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
