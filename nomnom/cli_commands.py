@@ -6,9 +6,11 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
+from nomnom.plugin import Plugin
+
 
 def run_setups_for_plugins(
-    plugins: list[tuple[str, object]],
+    plugins: list[tuple[str, Plugin]],
     *,
     has_setup_fn,
     run_plugin_setup_fn,
