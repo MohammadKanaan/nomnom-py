@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, MoveFile
-from nomnom.executor import execute
+from nomnom.executor import execute, EffectSkipped
 
 
 def test_execute_move_file(tmp_path: Path) -> None:
@@ -25,7 +25,8 @@ def test_execute_move_file_missing_source_is_noop(
     destination = tmp_path / "nested" / "dst.txt"
     caplog.set_level("WARNING")
 
-    execute(MoveFile(source=source, destination=destination))
+    with pytest.raises(EffectSkipped):
+        execute(MoveFile(source=source, destination=destination))
 
     assert not destination.exists()
     assert "Move skipped; source missing" in caplog.text
