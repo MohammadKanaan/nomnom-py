@@ -451,3 +451,44 @@ def test_plugin_setup_rejects_name_with_all(monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "Choose either a plugin name or --all, not both." in result.output
+
+def test_plugin_install_prefixes_git_urls(monkeypatch) -> None:
+    class PluginWithoutSetup:
+        def matches(self, event):
+            return False
+
+        def handle(self, event):
+            return []
+
+    runner = CliRunner()
+    seen_cmd = None
+
+    def fake_run(cmd, *args, **kwargs):
+        nonlocal seen_cmd
+        seen_cmd = cmd
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr(
+        cli_module,
+        "discover_new_plugins",
+        lambda known_names: [("fresh", PluginWithoutSetup())],
+    )
+    monkeypatch.setattr(
+        "subprocess.run",
+        fake_run,
+    )
+
+    result = runner.invoke(app, ["plugin", "add", "https://github.com/some/repo.git"])
+
+    assert result.exit_code == 0
+    assert seen_cmd == [
+        "uv",
+        "pip",
+        "install",
+        "--python",
+        sys.executable,
+        "--",
+        "git+https://github.com/some/repo.git",
+    ]
+    assert "Installing git+https://github.com/some/repo.git..." in result.output
