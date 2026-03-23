@@ -50,6 +50,13 @@ def _build_group_index(watch_groups: list[WatchGroup]) -> list[GroupIndexEntry]:
 
 
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
+    # fast path: avoid resolving symlinks
+    absolute_path = path if path.is_absolute() else path.absolute()
+    for root, group in index:
+        if absolute_path.is_relative_to(root):
+            return group
+
+    # fallback
     resolved = path.resolve(strict=False)
     for root, group in index:
         if resolved.is_relative_to(root):
