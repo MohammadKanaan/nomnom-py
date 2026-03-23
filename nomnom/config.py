@@ -1,7 +1,7 @@
 import logging
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-import tomllib
 
 logger = logging.getLogger(__name__)
 

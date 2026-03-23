@@ -98,10 +98,7 @@ def _matches_filters(path: Path, group: WatchGroup) -> bool:
     if group.include and not _matches_patterns(path.name, group.include):
         return False
 
-    if group.exclude and _matches_patterns(path.name, group.exclude):
-        return False
-
-    return True
+    return not (group.exclude and _matches_patterns(path.name, group.exclude))
 
 
 def _print_event(console: "Console", event: FileEvent) -> None:

@@ -1,10 +1,23 @@
-from types import SimpleNamespace
+import importlib
 import sys
+from types import SimpleNamespace
 
 from typer.testing import CliRunner
 
 import nomnom.cli as cli_module
 from nomnom.cli import app
+
+
+def test_nomnom_config_env_var_is_used_by_watch_command(monkeypatch) -> None:
+    monkeypatch.setenv("NOMNOM_CONFIG", "custom.toml")
+    importlib.reload(cli_module)
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli_module.app, ["watch"])
+
+    assert result.exit_code == 1
+    assert "Config file not found: custom.toml" in result.output
+    assert "Run `nomnom setup --config custom.toml` to create one." in result.output
 
 
 def test_watch_prompts_setup_when_default_config_missing() -> None:

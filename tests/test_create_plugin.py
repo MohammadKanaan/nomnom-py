@@ -6,7 +6,9 @@ import typer
 import nomnom.create_plugin as create_plugin_module
 
 
-def test_create_plugin_rejects_path_traversal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_create_plugin_rejects_path_traversal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(create_plugin_module, "PLUGINS_DIR", tmp_path)
 
     with pytest.raises(typer.Exit) as exc_info:
