@@ -368,3 +368,14 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
     run_watcher(cfg, [], StubConsole())
 
     assert len(emitted) == 1
+
+def test_resolve_group_returns_none_for_path_outside_roots(tmp_path: Path) -> None:
+    configured_root = tmp_path / "project" / "src"
+    index = [((configured_root).resolve(), WatchGroup(name="src", paths=[configured_root]))]
+
+    # Path is outside the configured root (e.g. project/tests instead of project/src)
+    file_path = tmp_path / "project" / "tests" / "test_file.py"
+
+    group = _resolve_group(file_path, index)
+
+    assert group is None
