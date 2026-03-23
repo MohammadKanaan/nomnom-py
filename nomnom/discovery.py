@@ -7,7 +7,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import cast
 
-from nomnom.config import Config
+from nomnom.config import Config, DEFAULT_PLUGIN_PRIORITY
 from nomnom.plugin import Plugin
 from nomnom.validation import validate_module_path_containment
 
@@ -142,4 +142,4 @@ def prioritize_plugins(
     config: Config,
 ) -> list[tuple[str, Plugin]]:
     priority_map = {p.name: p.priority for p in config.plugins}
-    return sorted(plugins, key=lambda p: priority_map.get(p[0], 50))
+    return sorted(plugins, key=lambda p: priority_map.get(p[0], DEFAULT_PLUGIN_PRIORITY))

@@ -1,8 +1,9 @@
+import logging
 from pathlib import Path
 
 import pytest
 
-from nomnom.config import load_config
+from nomnom.config import ConfigError, DEFAULT_PLUGIN_PRIORITY, load_config
 
 
 def test_load_config_supports_plugins_key(tmp_path: Path) -> None:
@@ -91,7 +92,35 @@ name = "transcribe"
         + "\n"
     )
 
-    with pytest.raises(KeyError):
+    with pytest.raises(ConfigError, match="missing required 'watch' key"):
+        load_config(config_path)
+
+
+def test_load_config_missing_name_raises(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    with pytest.raises(ConfigError, match="missing required 'name' key"):
+        load_config(config_path)
+
+
+def test_load_config_missing_paths_raises(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+""".strip()
+        + "\n"
+    )
+
+    with pytest.raises(ConfigError, match="missing required 'paths' key"):
         load_config(config_path)
 
 
@@ -129,7 +158,7 @@ name = "transcribe"
     cfg = load_config(config_path)
 
     assert len(cfg.plugins) == 1
-    assert cfg.plugins[0].priority == 50
+    assert cfg.plugins[0].priority == DEFAULT_PLUGIN_PRIORITY
 
 
 def test_load_config_multiple_watch_groups(tmp_path: Path) -> None:
@@ -150,8 +179,96 @@ paths = ["./archive"]
     cfg = load_config(config_path)
 
     assert [group.name for group in cfg.watch_groups] == ["inbox", "archive"]
-    assert cfg.watch_groups[0].paths == [Path("./inbox"), Path("./shared")]
-    assert cfg.watch_groups[1].paths == [Path("./archive")]
+    assert cfg.watch_groups[0].paths == [tmp_path / "inbox", tmp_path / "shared"]
+    assert cfg.watch_groups[1].paths == [tmp_path / "archive"]
+
+
+def test_load_config_resolves_paths_relative_to_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    cfg = load_config(config_path)
+
+    assert cfg.watch_groups[0].paths == [tmp_path / "inbox"]
+
+
+def test_load_config_absolute_paths_kept_as_is(tmp_path: Path) -> None:
+    abs_path = tmp_path / "abs_inbox"
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        f"""
+[[watch]]
+name = "inbox"
+paths = ["{abs_path}"]
+""".strip()
+        + "\n"
+    )
+
+    cfg = load_config(config_path)
+
+    assert cfg.watch_groups[0].paths == [abs_path]
+
+
+def test_load_config_overlap_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "parent"
+paths = ["./inbox"]
+
+[[watch]]
+name = "child"
+paths = ["./inbox/sub"]
+""".strip()
+        + "\n"
+    )
+
+    with caplog.at_level(logging.WARNING, logger="nomnom.config"):
+        load_config(config_path)
+
+    assert "Overlapping watch paths" in caplog.text
+    assert f"Common path: {tmp_path / 'inbox'}" in caplog.text
+    assert f"parent path: {tmp_path / 'inbox'}" in caplog.text
+    assert f"child path: {tmp_path / 'inbox' / 'sub'}" in caplog.text
+    assert "parent" in caplog.text
+    assert "child" in caplog.text
+
+
+def test_load_config_overlap_warning_with_dotdot_paths(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "normalized-a"
+paths = ["./a/../b"]
+
+[[watch]]
+name = "normalized-b"
+paths = ["./b"]
+""".strip()
+        + "\n"
+    )
+
+    with caplog.at_level(logging.WARNING, logger="nomnom.config"):
+        load_config(config_path)
+
+    assert "Overlapping watch paths" in caplog.text
+    assert "normalized-a" in caplog.text
+    assert "normalized-b" in caplog.text
+
+
+def test_default_plugin_priority_constant() -> None:
+    assert DEFAULT_PLUGIN_PRIORITY == 50
 
 
 def test_load_config_file_not_found(tmp_path: Path) -> None:

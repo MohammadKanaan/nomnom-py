@@ -8,6 +8,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from rich.logging import RichHandler
+
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY
 
 
 def run_setups_for_plugins(
@@ -59,6 +62,15 @@ def watch_command(
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(name)s — %(levelname)s — %(message)s",
+        handlers=[
+            RichHandler(
+                console=console,
+                show_time=False,
+                show_path=False,
+                markup=True,
+            )
+        ],
+        force=True,
     )
     if not verbose:
         logging.getLogger("watchfiles").setLevel(logging.WARNING)
@@ -273,7 +285,7 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default="50"))
+            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
@@ -327,7 +339,7 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
             break
 
     if not updated:
-        plugins.append({"name": plugin_name, "priority": 50, "enabled": enabled})
+        plugins.append({"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled})
 
     with open(config_path, "wb") as f:
         tomli_w.dump(data, f)
