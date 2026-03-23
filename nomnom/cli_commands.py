@@ -12,9 +12,11 @@ from rich.logging import RichHandler
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
 
+from nomnom.plugin import Plugin
+
 
 def run_setups_for_plugins(
-    plugins: list[tuple[str, object]],
+    plugins: list[tuple[str, Plugin]],
     *,
     has_setup_fn: Callable[[Any], bool],
     run_plugin_setup_fn: Callable[[Any], None],
