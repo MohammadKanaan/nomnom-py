@@ -88,9 +88,7 @@ def test_coalesce_prefers_deleted_when_added_and_deleted_for_missing_path(
 ) -> None:
     path = tmp_path / "churn.txt"
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.deleted, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.deleted, str(path))})
 
     assert result == [(Change.deleted, str(path))]
 
@@ -101,9 +99,7 @@ def test_coalesce_prefers_added_when_added_and_deleted_for_existing_path(
     path = tmp_path / "churn.txt"
     path.write_text("ok")
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.deleted, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.deleted, str(path))})
 
     assert result == [(Change.added, str(path))]
 
@@ -111,9 +107,7 @@ def test_coalesce_prefers_added_when_added_and_deleted_for_existing_path(
 def test_coalesce_prefers_added_over_modified_for_same_path(tmp_path: Path) -> None:
     path = tmp_path / "update.txt"
 
-    result = _coalesce_changes(
-        {(Change.added, str(path)), (Change.modified, str(path))}
-    )
+    result = _coalesce_changes({(Change.added, str(path)), (Change.modified, str(path))})
 
     assert result == [(Change.added, str(path))]
 
@@ -243,6 +237,7 @@ def test_scan_existing_files_respects_filters(
     )
 
     assert [event.path.name for event in dispatched] == ["a.txt"]
+
 
 def test_run_watcher_prints_summary_on_keyboard_interrupt(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path

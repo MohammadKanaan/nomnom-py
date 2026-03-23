@@ -50,6 +50,12 @@ def _build_group_index(watch_groups: list[WatchGroup]) -> list[GroupIndexEntry]:
 
 
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
+    # Fast path: skip expensive resolve() if path is already absolute
+    if path.is_absolute():
+        for root, group in index:
+            if path.is_relative_to(root):
+                return group
+
     resolved = path.resolve(strict=False)
     for root, group in index:
         if resolved.is_relative_to(root):
@@ -157,9 +163,7 @@ def run_watcher(
             group for group in cfg.watch_groups if group.name == once_watch_group
         ]
 
-    all_paths = [
-        path.resolve() for group in active_watch_groups for path in group.paths
-    ]
+    all_paths = [path.resolve() for group in active_watch_groups for path in group.paths]
 
     # Filter out non-existent paths
     watch_paths = []

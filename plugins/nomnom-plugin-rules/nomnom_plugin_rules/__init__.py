@@ -147,9 +147,7 @@ def _parse_rule(candidate: object) -> Rule | None:
 
     if action in {"prepend", "append"} and not isinstance(content, str):
         return None
-    if action == "move" and (
-        not isinstance(destination, str) or not destination.strip()
-    ):
+    if action == "move" and (not isinstance(destination, str) or not destination.strip()):
         return None
 
     try:

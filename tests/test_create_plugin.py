@@ -59,12 +59,7 @@ def test_create_plugin_generates_correct_class_name(
 
     create_plugin_module.create_plugin("pdf-parser")
 
-    init_path = (
-        tmp_path
-        / "nomnom-plugin-pdf-parser"
-        / "nomnom_plugin_pdf_parser"
-        / "__init__.py"
-    )
+    init_path = tmp_path / "nomnom-plugin-pdf-parser" / "nomnom_plugin_pdf_parser" / "__init__.py"
     init_text = init_path.read_text()
 
     assert "class PdfParserPlugin:" in init_text

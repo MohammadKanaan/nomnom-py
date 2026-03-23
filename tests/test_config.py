@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from nomnom.config import ConfigError, DEFAULT_PLUGIN_PRIORITY, load_config
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, ConfigError, load_config
 
 
 def test_load_config_supports_plugins_key(tmp_path: Path) -> None:

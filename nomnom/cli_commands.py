@@ -5,13 +5,12 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
 from nomnom.plugin import Plugin
 
 
@@ -82,8 +81,7 @@ def watch_command(
         if config != Path("config.toml"):
             setup_cmd += f" --config {config}"
         console.print(
-            f"[red]Config file not found: {config}[/]\n"
-            f"[yellow]Run `{setup_cmd}` to create one.[/]"
+            f"[red]Config file not found: {config}[/]\n[yellow]Run `{setup_cmd}` to create one.[/]"
         )
         raise typer.Exit(code=1)
 
@@ -114,8 +112,7 @@ def watch_command(
 
     banner = Panel(
         "[bold cyan]nomnom[/] v0.1.0\n"
-        f"[dim]Config: {config}[/]"
-        + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
+        f"[dim]Config: {config}[/]" + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",
     )
     console.print(banner)
@@ -180,8 +177,7 @@ def setup_command(
 
     console.print(
         Panel(
-            "[bold cyan]nomnom Setup Wizard[/]\n"
-            "[dim]Configure your file watcher interactively[/]",
+            "[bold cyan]nomnom Setup Wizard[/]\n[dim]Configure your file watcher interactively[/]",
             border_style="cyan",
         )
     )
@@ -204,8 +200,7 @@ def setup_command(
                 for wg in cfg.watch_groups
             ]
             existing_plugins = [
-                {"name": p.name, "priority": p.priority, "enabled": p.enabled}
-                for p in cfg.plugins
+                {"name": p.name, "priority": p.priority, "enabled": p.enabled} for p in cfg.plugins
             ]
         except Exception as e:
             console.print(f"[red]Error loading config: {e}[/]")
@@ -232,12 +227,8 @@ def setup_command(
             name = Prompt.ask("Watch group name")
             paths_input = Prompt.ask("Paths to watch (comma-separated)")
             paths = [p.strip() for p in paths_input.split(",") if p.strip()]
-            include_input = Prompt.ask(
-                "Include patterns (comma-separated, optional)", default=""
-            )
-            exclude_input = Prompt.ask(
-                "Exclude patterns (comma-separated, optional)", default=""
-            )
+            include_input = Prompt.ask("Include patterns (comma-separated, optional)", default="")
+            exclude_input = Prompt.ask("Exclude patterns (comma-separated, optional)", default="")
             include = [p.strip() for p in include_input.split(",") if p.strip()]
             exclude = [p.strip() for p in exclude_input.split(",") if p.strip()]
 
@@ -270,9 +261,7 @@ def setup_command(
     if existing_plugins:
         console.print("\n[dim]Existing plugin configurations:[/]")
         for i, plugin in enumerate(existing_plugins, 1):
-            console.print(
-                f"  {i}. [magenta]{plugin['name']}[/] (priority: {plugin['priority']})"
-            )
+            console.print(f"  {i}. [magenta]{plugin['name']}[/] (priority: {plugin['priority']})")
 
         if Confirm.ask("Keep existing plugin configurations?", default=True):
             plugins.extend(existing_plugins)
@@ -287,7 +276,11 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
+            priority = int(
+                Prompt.ask(
+                    "Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)
+                )
+            )
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
@@ -341,7 +334,9 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
             break
 
     if not updated:
-        plugins.append({"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled})
+        plugins.append(
+            {"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled}
+        )
 
     with open(config_path, "wb") as f:
         tomli_w.dump(data, f)

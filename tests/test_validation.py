@@ -72,9 +72,7 @@ def test_validate_module_path_containment_package(tmp_path: Path) -> None:
         "evil:Thing",
     ],
 )
-def test_validate_module_path_containment_rejects_unsafe(
-    tmp_path: Path, module_path: str
-) -> None:
+def test_validate_module_path_containment_rejects_unsafe(tmp_path: Path, module_path: str) -> None:
     plugin_root = tmp_path / "nomnom-plugin-safe"
     plugin_root.mkdir()
 

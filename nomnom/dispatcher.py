@@ -65,9 +65,7 @@ def dispatch(
                 )
             else:
                 if dry_run:
-                    logger.info(
-                        f"[DRY RUN] Would execute {type(effect).__name__}: {effect}"
-                    )
+                    logger.info(f"[DRY RUN] Would execute {type(effect).__name__}: {effect}")
                     if stats is not None:
                         stats.record_dry_run_effect()
                     continue

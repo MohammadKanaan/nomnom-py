@@ -7,7 +7,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import cast
 
-from nomnom.config import Config, DEFAULT_PLUGIN_PRIORITY
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
 from nomnom.plugin import Plugin
 from nomnom.validation import validate_module_path_containment
 
@@ -71,11 +71,7 @@ def _discover_local(plugins_dir: Path = PLUGINS_DIR) -> list[tuple[str, Plugin]]
             with open(pyproject, "rb") as f:
                 data = tomllib.load(f)
 
-            ep_map = (
-                data.get("project", {})
-                .get("entry-points", {})
-                .get(ENTRY_POINT_GROUP, {})
-            )
+            ep_map = data.get("project", {}).get("entry-points", {}).get(ENTRY_POINT_GROUP, {})
 
             if not ep_map:
                 continue
@@ -91,9 +87,7 @@ def _discover_local(plugins_dir: Path = PLUGINS_DIR) -> list[tuple[str, Plugin]]
     return plugins
 
 
-def _load_plugin_from_target(
-    plugin_root: Path, name: str, target: str
-) -> Plugin | None:
+def _load_plugin_from_target(plugin_root: Path, name: str, target: str) -> Plugin | None:
     """Load a plugin class from a 'module.path:ClassName' target string."""
     try:
         module_path, class_name = target.rsplit(":", 1)
