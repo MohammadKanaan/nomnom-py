@@ -5,13 +5,12 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
 from nomnom.plugin import Plugin
 
 
@@ -444,7 +443,7 @@ def plugin_remove_command(
 
     typer.echo(f"Removing {package}...")
     installed_before = get_installed_plugin_names_fn()
-    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, package]
+    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, "--", package]
 
     try:
         result = subprocess.run(
