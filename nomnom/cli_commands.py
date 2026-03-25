@@ -1,25 +1,77 @@
 import logging
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Protocol, TypedDict, cast
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
-from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
 from nomnom.plugin import Plugin
+
+
+class WatchGroupDict(TypedDict):
+    name: str
+    paths: list[str]
+    include: list[str] | tuple[str, ...]
+    exclude: list[str] | tuple[str, ...]
+
+class PluginConfigDict(TypedDict):
+    name: str
+    priority: int
+    enabled: bool
+
+class ConfigDataDict(TypedDict, total=False):
+    watch: list[WatchGroupDict]
+    plugins: list[PluginConfigDict]
+
+class LoadConfigFn(Protocol):
+    def __call__(self, path: Path) -> Config: ...
+
+class DiscoverPluginsFn(Protocol):
+    def __call__(self) -> list[tuple[str, Plugin]]: ...
+
+class PrioritizePluginsFn(Protocol):
+    def __call__(
+        self, plugins: list[tuple[str, Plugin]], config: Config
+    ) -> list[tuple[str, Plugin]]: ...
+
+class RunWatcherFn(Protocol):
+    def __call__(
+        self,
+        cfg: Config,
+        plugins: list[tuple[str, Plugin]],
+        console: Console,
+        *,
+        dry_run: bool,
+        once: bool,
+        once_watch_group: str | None,
+    ) -> None: ...
+
+class GetInstalledPluginNamesFn(Protocol):
+    def __call__(self) -> set[str]: ...
+
+class DiscoverNewPluginsFn(Protocol):
+    def __call__(self, known_names: set[str]) -> list[tuple[str, Plugin]]: ...
+
+class RunSetupsForPluginsFn(Protocol):
+    def __call__(self, plugins: list[tuple[str, Plugin]]) -> None: ...
+
+class HasSetupFn(Protocol):
+    def __call__(self, plugin: Plugin) -> bool: ...
+
+class RunPluginSetupFn(Protocol):
+    def __call__(self, plugin: Plugin) -> None: ...
 
 
 def run_setups_for_plugins(
     plugins: list[tuple[str, Plugin]],
     *,
-    has_setup_fn: Callable[[Any], bool],
-    run_plugin_setup_fn: Callable[[Any], None],
+    has_setup_fn: HasSetupFn,
+    run_plugin_setup_fn: RunPluginSetupFn,
 ) -> None:
     setup_ran = False
     setup_failed = False
@@ -56,10 +108,10 @@ def watch_command(
     dry_run: bool,
     once: bool,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
-    prioritize_plugins_fn: Callable[..., Any],
-    run_watcher_fn: Callable[..., Any],
+    load_config_fn: LoadConfigFn,
+    discover_plugins_fn: DiscoverPluginsFn,
+    prioritize_plugins_fn: PrioritizePluginsFn,
+    run_watcher_fn: RunWatcherFn,
 ) -> None:
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
@@ -173,8 +225,8 @@ def setup_command(
     *,
     config: Path,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
+    load_config_fn: LoadConfigFn,
+    discover_plugins_fn: DiscoverPluginsFn,
 ) -> None:
     import tomli_w
 
@@ -194,16 +246,16 @@ def setup_command(
 
         try:
             cfg = load_config_fn(config)
-            existing_watch_groups = [
+            existing_watch_groups: list[WatchGroupDict] = [
                 {
                     "name": wg.name,
                     "paths": [str(p) for p in wg.paths],
-                    "include": wg.include,
-                    "exclude": wg.exclude,
+                    "include": list(wg.include),
+                    "exclude": list(wg.exclude),
                 }
                 for wg in cfg.watch_groups
             ]
-            existing_plugins = [
+            existing_plugins: list[PluginConfigDict] = [
                 {"name": p.name, "priority": p.priority, "enabled": p.enabled}
                 for p in cfg.plugins
             ]
@@ -217,7 +269,7 @@ def setup_command(
         existing_plugins = []
 
     console.print("\n[bold]Watch Groups Configuration[/]")
-    watch_groups = []
+    watch_groups: list[WatchGroupDict] = []
 
     if existing_watch_groups:
         console.print("[dim]Existing watch groups:[/]")
@@ -265,7 +317,7 @@ def setup_command(
         for plugin_name, _ in discovered:
             console.print(f"  • [magenta]{plugin_name}[/]")
 
-    plugins = []
+    plugins: list[PluginConfigDict] = []
 
     if existing_plugins:
         console.print("\n[dim]Existing plugin configurations:[/]")
@@ -287,13 +339,17 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
+            priority = int(
+                Prompt.ask(
+                    "Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)
+                )
+            )
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
                 break
 
-    config_data = {"watch": watch_groups, "plugins": plugins}
+    config_data: ConfigDataDict = {"watch": watch_groups, "plugins": plugins}
 
     try:
         with open(config, "wb") as f:
@@ -330,7 +386,7 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
         return False
 
     with open(config_path, "rb") as f:
-        data = tomllib.load(f)
+        data = cast(ConfigDataDict, tomllib.load(f))
 
     plugins = data.setdefault("plugins", [])
     updated = False
@@ -341,7 +397,9 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
             break
 
     if not updated:
-        plugins.append({"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled})
+        plugins.append(
+            {"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled}
+        )
 
     with open(config_path, "wb") as f:
         tomli_w.dump(data, f)
@@ -359,7 +417,7 @@ def _remove_plugin_from_config(config_path: Path, plugin_name: str) -> bool:
         return False
 
     with open(config_path, "rb") as f:
-        data = tomllib.load(f)
+        data = cast(ConfigDataDict, tomllib.load(f))
 
     if "plugins" not in data:
         return False
@@ -380,9 +438,9 @@ def plugin_add_command(
     package: str,
     no_setup: bool,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[..., Any],
-    discover_new_plugins_fn: Callable[..., Any],
-    run_setups_for_plugins_fn: Callable[..., Any],
+    get_installed_plugin_names_fn: GetInstalledPluginNamesFn,
+    discover_new_plugins_fn: DiscoverNewPluginsFn,
+    run_setups_for_plugins_fn: RunSetupsForPluginsFn,
 ) -> None:
     import subprocess
     import sys
@@ -437,7 +495,7 @@ def plugin_remove_command(
     *,
     package: str,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[..., Any],
+    get_installed_plugin_names_fn: GetInstalledPluginNamesFn,
 ) -> None:
     import subprocess
     import sys
@@ -521,8 +579,8 @@ def plugin_list_command(
     *,
     config_path: Path,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
+    load_config_fn: LoadConfigFn,
+    discover_plugins_fn: DiscoverPluginsFn,
 ) -> None:
     discovered = discover_plugins_fn()
     discovered_names = {name for name, _ in discovered}
@@ -566,8 +624,8 @@ def plugin_setup_command(
     *,
     name: str | None,
     all_plugins: bool,
-    discover_plugins_fn: Callable[..., Any],
-    run_setups_for_plugins_fn: Callable[..., Any],
+    discover_plugins_fn: DiscoverPluginsFn,
+    run_setups_for_plugins_fn: RunSetupsForPluginsFn,
 ) -> None:
     if name and all_plugins:
         typer.echo("Choose either a plugin name or --all, not both.")
