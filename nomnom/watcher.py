@@ -157,9 +157,7 @@ def run_watcher(
             group for group in cfg.watch_groups if group.name == once_watch_group
         ]
 
-    all_paths = [
-        path.resolve() for group in active_watch_groups for path in group.paths
-    ]
+    all_paths = [path.resolve() for group in active_watch_groups for path in group.paths]
 
     # Filter out non-existent paths
     watch_paths = []
