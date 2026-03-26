@@ -18,24 +18,18 @@ def validate_plugin_name(name: str) -> str:
 
     slug = normalized.lower().replace("_", "-")
     if not all(char.isalnum() or char == "-" for char in slug):
-        raise ValueError(
-            "Plugin name can only contain letters, numbers, underscores, and hyphens"
-        )
+        raise ValueError("Plugin name can only contain letters, numbers, underscores, and hyphens")
 
     return slug
 
 
 def _is_subpath(path: Path, parent: Path) -> bool:
-    try:
-        path.relative_to(parent)
-        return True
-    except ValueError:
-        return False
+    # Use is_relative_to() instead of try/except relative_to() for faster boolean checks
+    # without exception overhead
+    return path.is_relative_to(parent)
 
 
-def validate_module_path_containment(
-    plugin_root: Path, module_path: str
-) -> Path | None:
+def validate_module_path_containment(plugin_root: Path, module_path: str) -> Path | None:
     """Resolve module path to a Python file only if it remains in plugin_root."""
     if not module_path or ":" in module_path:
         return None
