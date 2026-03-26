@@ -5,13 +5,13 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
+from rich.markup import escape
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
 from nomnom.plugin import Plugin
 
 
@@ -126,7 +126,7 @@ def watch_command(
     priority_map = {p.name: p.priority for p in cfg.plugins}
     for name, _ in plugins:
         priority = priority_map.get(name, 50)
-        plugin_table.add_row(name, str(priority))
+        plugin_table.add_row(escape(name), str(priority))
     console.print(plugin_table)
 
     watch_table = Table(title=f"Watch Groups ({len(cfg.watch_groups)})")
@@ -140,9 +140,9 @@ def watch_command(
         if wg.exclude:
             filters.append(f"exclude={','.join(wg.exclude)}")
         watch_table.add_row(
-            wg.name,
-            ", ".join(str(p) for p in wg.paths),
-            "; ".join(filters) if filters else "-",
+            escape(wg.name),
+            ", ".join(escape(str(p)) for p in wg.paths),
+            "; ".join(escape(f) for f in filters) if filters else "-",
         )
     console.print(watch_table)
 
@@ -444,7 +444,7 @@ def plugin_remove_command(
 
     typer.echo(f"Removing {package}...")
     installed_before = get_installed_plugin_names_fn()
-    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, package]
+    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, "--", package]
 
     try:
         result = subprocess.run(
@@ -557,7 +557,7 @@ def plugin_list_command(
             if not p_config.enabled:
                 status_text = "[red]Disabled[/]"
 
-        table.add_row(name, status_text, priority_text, installed_text)
+        table.add_row(escape(name), status_text, priority_text, installed_text)
 
     console.print(table)
 
