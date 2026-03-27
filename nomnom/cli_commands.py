@@ -5,13 +5,13 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
+from rich.markup import escape
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
 from nomnom.plugin import Plugin
 
 
@@ -80,9 +80,9 @@ def watch_command(
     if not config.exists():
         setup_cmd = "nomnom setup"
         if config != Path("config.toml"):
-            setup_cmd += f" --config {config}"
+            setup_cmd += f" --config {escape(str(config))}"
         console.print(
-            f"[red]Config file not found: {config}[/]\n"
+            f"[red]Config file not found: {escape(str(config))}[/]\n"
             f"[yellow]Run `{setup_cmd}` to create one.[/]"
         )
         raise typer.Exit(code=1)
@@ -97,8 +97,8 @@ def watch_command(
         if once_watch_group not in available_groups:
             available = ", ".join(sorted(available_groups)) if available_groups else "(none)"
             console.print(
-                f"[red]Watch group not found: {once_watch_group}[/]\n"
-                f"[yellow]Available groups: {available}[/]"
+                f"[red]Watch group not found: {escape(once_watch_group)}[/]\n"
+                f"[yellow]Available groups: {escape(available)}[/]"
             )
             raise typer.Exit(code=1)
 
@@ -114,7 +114,7 @@ def watch_command(
 
     banner = Panel(
         "[bold cyan]nomnom[/] v0.1.0\n"
-        f"[dim]Config: {config}[/]"
+        f"[dim]Config: {escape(str(config))}[/]"
         + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",
     )
@@ -126,7 +126,7 @@ def watch_command(
     priority_map = {p.name: p.priority for p in cfg.plugins}
     for name, _ in plugins:
         priority = priority_map.get(name, 50)
-        plugin_table.add_row(name, str(priority))
+        plugin_table.add_row(escape(name), str(priority))
     console.print(plugin_table)
 
     watch_table = Table(title=f"Watch Groups ({len(cfg.watch_groups)})")
@@ -140,9 +140,9 @@ def watch_command(
         if wg.exclude:
             filters.append(f"exclude={','.join(wg.exclude)}")
         watch_table.add_row(
-            wg.name,
-            ", ".join(str(p) for p in wg.paths),
-            "; ".join(filters) if filters else "-",
+            escape(wg.name),
+            escape(", ".join(str(p) for p in wg.paths)),
+            escape("; ".join(filters)) if filters else "-",
         )
     console.print(watch_table)
 
@@ -150,7 +150,7 @@ def watch_command(
         if once_watch_group:
             console.print(
                 f"\n[dim]One-shot mode: scanning existing files in group "
-                f"'{once_watch_group}'...[/]\n"
+                f"'{escape(once_watch_group)}'...[/]\n"
             )
         else:
             console.print("\n[dim]One-shot mode: scanning existing files...[/]\n")
@@ -180,8 +180,7 @@ def setup_command(
 
     console.print(
         Panel(
-            "[bold cyan]nomnom Setup Wizard[/]\n"
-            "[dim]Configure your file watcher interactively[/]",
+            "[bold cyan]nomnom Setup Wizard[/]\n[dim]Configure your file watcher interactively[/]",
             border_style="cyan",
         )
     )
@@ -204,8 +203,7 @@ def setup_command(
                 for wg in cfg.watch_groups
             ]
             existing_plugins = [
-                {"name": p.name, "priority": p.priority, "enabled": p.enabled}
-                for p in cfg.plugins
+                {"name": p.name, "priority": p.priority, "enabled": p.enabled} for p in cfg.plugins
             ]
         except Exception as e:
             console.print(f"[red]Error loading config: {e}[/]")
@@ -232,12 +230,8 @@ def setup_command(
             name = Prompt.ask("Watch group name")
             paths_input = Prompt.ask("Paths to watch (comma-separated)")
             paths = [p.strip() for p in paths_input.split(",") if p.strip()]
-            include_input = Prompt.ask(
-                "Include patterns (comma-separated, optional)", default=""
-            )
-            exclude_input = Prompt.ask(
-                "Exclude patterns (comma-separated, optional)", default=""
-            )
+            include_input = Prompt.ask("Include patterns (comma-separated, optional)", default="")
+            exclude_input = Prompt.ask("Exclude patterns (comma-separated, optional)", default="")
             include = [p.strip() for p in include_input.split(",") if p.strip()]
             exclude = [p.strip() for p in exclude_input.split(",") if p.strip()]
 
@@ -270,9 +264,7 @@ def setup_command(
     if existing_plugins:
         console.print("\n[dim]Existing plugin configurations:[/]")
         for i, plugin in enumerate(existing_plugins, 1):
-            console.print(
-                f"  {i}. [magenta]{plugin['name']}[/] (priority: {plugin['priority']})"
-            )
+            console.print(f"  {i}. [magenta]{plugin['name']}[/] (priority: {plugin['priority']})")
 
         if Confirm.ask("Keep existing plugin configurations?", default=True):
             plugins.extend(existing_plugins)
@@ -287,7 +279,11 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
+            priority = int(
+                Prompt.ask(
+                    "Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)
+                )
+            )
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
@@ -341,7 +337,9 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
             break
 
     if not updated:
-        plugins.append({"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled})
+        plugins.append(
+            {"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled}
+        )
 
     with open(config_path, "wb") as f:
         tomli_w.dump(data, f)
@@ -444,7 +442,7 @@ def plugin_remove_command(
 
     typer.echo(f"Removing {package}...")
     installed_before = get_installed_plugin_names_fn()
-    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, package]
+    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, "--", package]
 
     try:
         result = subprocess.run(
@@ -557,7 +555,7 @@ def plugin_list_command(
             if not p_config.enabled:
                 status_text = "[red]Disabled[/]"
 
-        table.add_row(name, status_text, priority_text, installed_text)
+        table.add_row(escape(name), status_text, priority_text, installed_text)
 
     console.print(table)
 
