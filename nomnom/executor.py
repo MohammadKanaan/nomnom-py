@@ -31,11 +31,14 @@ def execute(effect: Effect) -> bool:
 
         case EditFile(path=path, action=action, content=content):
             logger.info(f"Editing {path} ({action.value})")
-            existing = path.read_bytes() if path.exists() else b""
             if action is EditAction.PREPEND:
+                existing = path.read_bytes() if path.exists() else b""
                 path.write_bytes(content + existing)
             else:
-                path.write_bytes(existing + content)
+                # O(1) performance optimization: use binary append mode
+                # instead of reading the entire file into memory (O(N))
+                with path.open("ab") as f:
+                    f.write(content)
             return True
 
         case _:
