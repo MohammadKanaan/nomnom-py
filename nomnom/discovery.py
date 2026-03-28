@@ -16,6 +16,33 @@ PLUGINS_DIR = Path("plugins")
 ENTRY_POINT_GROUP = "nomnom.plugins"
 
 
+def _snapshot_canonical_modules(module_path: str) -> dict[str, object]:
+    prefix = f"{module_path}."
+    return {
+        key: value
+        for key, value in sys.modules.items()
+        if key == module_path or key.startswith(prefix)
+    }
+
+
+def _restore_canonical_modules(
+    module_path: str, snapshot: dict[str, object]
+) -> None:
+    prefix = f"{module_path}."
+    current_keys = [
+        key
+        for key in list(sys.modules.keys())
+        if key == module_path or key.startswith(prefix)
+    ]
+
+    for key in current_keys:
+        if key not in snapshot:
+            sys.modules.pop(key, None)
+
+    for key, value in snapshot.items():
+        sys.modules[key] = value
+
+
 def discover_plugins() -> list[tuple[str, Plugin]]:
     installed = _discover_installed()
     local = _discover_local()
@@ -108,23 +135,32 @@ def _load_plugin_from_target(
         )
         return None
 
+    namespaced_key = f"nomnom_local.{name}.{module_path}"
+
     try:
-        spec = importlib.util.spec_from_file_location(module_path, file_path)
+        spec = importlib.util.spec_from_file_location(namespaced_key, file_path)
         if spec is None or spec.loader is None:
             logger.warning(f"Cannot create module spec for local plugin '{name}'")
             return None
 
         module = importlib.util.module_from_spec(spec)
-        previous_module = sys.modules.get(module_path)
+        previous_module = sys.modules.get(namespaced_key)
+        canonical_snapshot = _snapshot_canonical_modules(module_path)
+
+        sys.modules[namespaced_key] = module
+        # Provide temporary canonical aliases so absolute self-imports resolve
+        # during module execution without leaking canonical entries globally.
         sys.modules[module_path] = module
         try:
             spec.loader.exec_module(module)
         except Exception:
             if previous_module is not None:
-                sys.modules[module_path] = previous_module
+                sys.modules[namespaced_key] = previous_module
             else:
-                sys.modules.pop(module_path, None)
+                sys.modules.pop(namespaced_key, None)
             raise
+        finally:
+            _restore_canonical_modules(module_path, canonical_snapshot)
 
         plugin_class = getattr(module, class_name)
         plugin = plugin_class()
