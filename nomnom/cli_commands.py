@@ -1,10 +1,18 @@
 import logging
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import typer
+from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from rich.logging import RichHandler
+
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY
+
+from nomnom.plugin import Plugin
 
 from nomnom.plugin import PluginEntry
 
@@ -12,8 +20,8 @@ from nomnom.plugin import PluginEntry
 def run_setups_for_plugins(
     plugins: list[PluginEntry],
     *,
-    has_setup_fn,
-    run_plugin_setup_fn,
+    has_setup_fn: Callable[[Any], bool],
+    run_plugin_setup_fn: Callable[[Any], None],
 ) -> None:
     setup_ran = False
     setup_failed = False
@@ -29,7 +37,7 @@ def run_setups_for_plugins(
             typer.echo(f"Setup completed for plugin '{plugin_name}'.")
         except KeyboardInterrupt:
             typer.echo(f"Setup cancelled for plugin '{plugin_name}'.")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
         except Exception as e:
             typer.echo(f"Setup failed for plugin '{plugin_name}': {e}")
             setup_failed = True
@@ -49,15 +57,24 @@ def watch_command(
     verbose: bool,
     dry_run: bool,
     once: bool,
-    console,
-    load_config_fn,
-    discover_plugins_fn,
-    prioritize_plugins_fn,
-    run_watcher_fn,
+    console: Console,
+    load_config_fn: Callable[..., Any],
+    discover_plugins_fn: Callable[..., Any],
+    prioritize_plugins_fn: Callable[..., Any],
+    run_watcher_fn: Callable[..., Any],
 ) -> None:
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(name)s — %(levelname)s — %(message)s",
+        handlers=[
+            RichHandler(
+                console=console,
+                show_time=False,
+                show_path=False,
+                markup=True,
+            )
+        ],
+        force=True,
     )
     if not verbose:
         logging.getLogger("watchfiles").setLevel(logging.WARNING)
@@ -157,9 +174,9 @@ def watch_command(
 def setup_command(
     *,
     config: Path,
-    console,
-    load_config_fn,
-    discover_plugins_fn,
+    console: Console,
+    load_config_fn: Callable[..., Any],
+    discover_plugins_fn: Callable[..., Any],
 ) -> None:
     import tomli_w
 
@@ -188,7 +205,10 @@ def setup_command(
                 }
                 for wg in cfg.watch_groups
             ]
-            existing_plugins = [{"name": p.name, "priority": p.priority, "enabled": p.enabled} for p in cfg.plugins]
+            existing_plugins = [
+                {"name": p.name, "priority": p.priority, "enabled": p.enabled}
+                for p in cfg.plugins
+            ]
         except Exception as e:
             console.print(f"[red]Error loading config: {e}[/]")
             existing_watch_groups = []
@@ -269,7 +289,7 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default="50"))
+            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
@@ -304,8 +324,9 @@ def _warn_missing_config(config_path: Path, is_error: bool = False) -> None:
 
 def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool) -> bool:
     """Helper to update the enabled status of a plugin in config.toml."""
-    import tomli_w
     import tomllib
+
+    import tomli_w
 
     if not config_path.exists():
         return False
@@ -322,7 +343,7 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
             break
 
     if not updated:
-        plugins.append({"name": plugin_name, "priority": 50, "enabled": enabled})
+        plugins.append({"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled})
 
     with open(config_path, "wb") as f:
         tomli_w.dump(data, f)
@@ -332,8 +353,9 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
 
 def _remove_plugin_from_config(config_path: Path, plugin_name: str) -> bool:
     """Helper to remove a plugin from config.toml."""
-    import tomli_w
     import tomllib
+
+    import tomli_w
 
     if not config_path.exists():
         return False
@@ -360,9 +382,9 @@ def plugin_add_command(
     package: str,
     no_setup: bool,
     config_path: Path,
-    get_installed_plugin_names_fn,
-    discover_new_plugins_fn,
-    run_setups_for_plugins_fn,
+    get_installed_plugin_names_fn: Callable[..., Any],
+    discover_new_plugins_fn: Callable[..., Any],
+    run_setups_for_plugins_fn: Callable[..., Any],
 ) -> None:
     import subprocess
     import sys
@@ -379,7 +401,7 @@ def plugin_add_command(
         )
     except OSError as e:
         typer.echo(f"Installation failed: could not execute '{install_cmd[0]}': {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     if result.returncode != 0:
         typer.echo("Installation failed:")
@@ -417,7 +439,7 @@ def plugin_remove_command(
     *,
     package: str,
     config_path: Path,
-    get_installed_plugin_names_fn,
+    get_installed_plugin_names_fn: Callable[..., Any],
 ) -> None:
     import subprocess
     import sys
@@ -434,7 +456,7 @@ def plugin_remove_command(
         )
     except OSError as e:
         typer.echo(f"Removal failed: could not execute '{uninstall_cmd[0]}': {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
     if result.returncode != 0:
         typer.echo("Removal failed:")
@@ -500,9 +522,9 @@ def plugin_enable_command(
 def plugin_list_command(
     *,
     config_path: Path,
-    console,
-    load_config_fn,
-    discover_plugins_fn,
+    console: Console,
+    load_config_fn: Callable[..., Any],
+    discover_plugins_fn: Callable[..., Any],
 ) -> None:
     discovered = discover_plugins_fn()
     discovered_names = {name for name, _ in discovered}
@@ -546,8 +568,8 @@ def plugin_setup_command(
     *,
     name: str | None,
     all_plugins: bool,
-    discover_plugins_fn,
-    run_setups_for_plugins_fn,
+    discover_plugins_fn: Callable[..., Any],
+    run_setups_for_plugins_fn: Callable[..., Any],
 ) -> None:
     if name and all_plugins:
         typer.echo("Choose either a plugin name or --all, not both.")
