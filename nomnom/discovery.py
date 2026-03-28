@@ -5,8 +5,9 @@ import sys
 import tomllib
 from importlib.metadata import entry_points
 from pathlib import Path
+from typing import cast
 
-from nomnom.config import Config
+from nomnom.config import Config, DEFAULT_PLUGIN_PRIORITY
 from nomnom.plugin import Plugin, PluginEntry
 from nomnom.validation import validate_module_path_containment
 
@@ -127,7 +128,7 @@ def _load_plugin_from_target(
             raise
 
         plugin_class = getattr(module, class_name)
-        plugin = plugin_class()
+        plugin = cast(Plugin, plugin_class())
         logger.info(f"Loaded local plugin: {name}")
         return plugin
 
@@ -141,4 +142,4 @@ def prioritize_plugins(
     config: Config,
 ) -> list[PluginEntry]:
     priority_map = {p.name: p.priority for p in config.plugins}
-    return sorted(plugins, key=lambda p: priority_map.get(p.name, 50))
+    return sorted(plugins, key=lambda p: priority_map.get(p.name, DEFAULT_PLUGIN_PRIORITY))

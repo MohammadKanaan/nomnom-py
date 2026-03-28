@@ -74,6 +74,32 @@ def test_execute_edit_file_nonexistent_creates(tmp_path: Path) -> None:
     assert path.read_bytes() == b"new"
 
 
+def test_execute_edit_file_prepend_nonexistent(tmp_path: Path) -> None:
+    path = tmp_path / "missing.txt"
+
+    execute(EditFile(path=path, action=EditAction.PREPEND, content=b"new"))
+
+    assert path.read_bytes() == b"new"
+
+
+def test_execute_edit_file_prepend_multiline(tmp_path: Path) -> None:
+    path = tmp_path / "file.txt"
+    path.write_bytes(b"line 2\nline 3")
+
+    execute(EditFile(path=path, action=EditAction.PREPEND, content=b"line 1\n"))
+
+    assert path.read_bytes() == b"line 1\nline 2\nline 3"
+
+
+def test_execute_edit_file_prepend_empty_content(tmp_path: Path) -> None:
+    path = tmp_path / "file.txt"
+    path.write_bytes(b"existing")
+
+    execute(EditFile(path=path, action=EditAction.PREPEND, content=b""))
+
+    assert path.read_bytes() == b"existing"
+
+
 def test_execute_unknown_effect_raises_type_error() -> None:
     with pytest.raises(TypeError):
         execute("unexpected")
