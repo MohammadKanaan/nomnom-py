@@ -39,7 +39,7 @@ plugin_app = typer.Typer(
 app.add_typer(plugin_app, name="plugin")
 console = Console()
 
-app.command("create-plugin")(create_plugin)
+plugin_app.command("create")(create_plugin)
 
 
 @app.command()
