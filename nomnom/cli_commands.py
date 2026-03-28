@@ -6,9 +6,11 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
+from nomnom.plugin import PluginEntry
+
 
 def run_setups_for_plugins(
-    plugins: list[tuple[str, object]],
+    plugins: list[PluginEntry],
     *,
     has_setup_fn,
     run_plugin_setup_fn,
@@ -90,9 +92,9 @@ def watch_command(
 
     config_plugin_status = {p.name: p.enabled for p in cfg.plugins}
     plugins = [
-        (name, plugin)
-        for name, plugin in prioritized_plugins
-        if config_plugin_status.get(name, True)
+        entry
+        for entry in prioritized_plugins
+        if config_plugin_status.get(entry.name, True)
     ]
 
     banner = Panel(

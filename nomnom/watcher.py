@@ -11,7 +11,7 @@ from watchfiles import Change, watch
 from nomnom.config import Config, WatchGroup
 from nomnom.dispatcher import dispatch
 from nomnom.events import EventType, FileEvent
-from nomnom.plugin import Plugin
+from nomnom.plugin import PluginEntry
 from nomnom.stats import WatchStats
 
 if TYPE_CHECKING:
@@ -107,7 +107,7 @@ def _matches_filters(path: Path, group: WatchGroup) -> bool:
 def _scan_existing_files(
     watch_paths: list[Path],
     group_index: list[GroupIndexEntry],
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     console: "Console",
     dry_run: bool,
     stats: WatchStats,
@@ -142,7 +142,7 @@ def _scan_existing_files(
 
 def run_watcher(
     cfg: Config,
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     console: "Console",
     *,
     dry_run: bool = False,
