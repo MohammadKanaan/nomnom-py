@@ -14,9 +14,11 @@ from nomnom.config import DEFAULT_PLUGIN_PRIORITY
 
 from nomnom.plugin import Plugin
 
+from nomnom.plugin import PluginEntry
+
 
 def run_setups_for_plugins(
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     *,
     has_setup_fn: Callable[[Any], bool],
     run_plugin_setup_fn: Callable[[Any], None],
@@ -107,9 +109,9 @@ def watch_command(
 
     config_plugin_status = {p.name: p.enabled for p in cfg.plugins}
     plugins = [
-        (name, plugin)
-        for name, plugin in prioritized_plugins
-        if config_plugin_status.get(name, True)
+        entry
+        for entry in prioritized_plugins
+        if config_plugin_status.get(entry.name, True)
     ]
 
     banner = Panel(
