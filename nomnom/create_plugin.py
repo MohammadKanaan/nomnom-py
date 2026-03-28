@@ -100,7 +100,7 @@ class {class_name}:
             f"to define your optional setup(), matches(), and handle() logic.\n\n"
             f"Add to your config.toml:\n"
             f'  [dim][[plugins]]\n  name = "{slug}"\n  priority = 50[/]',
-            title="nomnom create-plugin",
+            title="nomnom plugin create",
             border_style="green",
         )
     )
