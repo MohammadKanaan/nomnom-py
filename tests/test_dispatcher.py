@@ -69,13 +69,18 @@ def test_dispatch_recurses_on_emit_event(
 def test_dispatch_respects_max_depth(
     caplog: pytest.LogCaptureFixture, make_event, stub_plugin_cls
 ) -> None:
+    """A plugin that always emits should be capped at max_depth generations."""
     event = make_event()
-    plugin = stub_plugin_cls(matches_result=True, effects=[])
+    inner = make_event(event_type=EventType.MODIFIED, path=Path("/tmp/inner.txt"))
+    plugin = stub_plugin_cls(matches_result=True, effects=[EmitEvent(event=inner)])
 
     caplog.set_level("WARNING")
-    dispatch(event, [("stub", plugin)], depth=2, max_depth=2, stats=WatchStats())
+    dispatch(event, [("stub", plugin)], max_depth=2, stats=WatchStats())
 
-    assert plugin.matched_events == []
+    # depth 0: event processed, emits inner
+    # depth 1: inner processed, emits inner again
+    # depth 2: max_depth reached, dropped
+    assert plugin.handled_events == [event, inner]
     assert "Max event depth (2) reached" in caplog.text
 
 
