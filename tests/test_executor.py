@@ -49,6 +49,25 @@ def test_execute_move_file_overwrites_with_warning(
     assert "overwriting" in caplog.text
 
 
+def test_execute_move_file_no_overwrite_skipped(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    source = tmp_path / "src.txt"
+    source.write_text("new")
+    destination = tmp_path / "dst.txt"
+    destination.write_text("old")
+    caplog.set_level("WARNING")
+
+    with pytest.raises(EffectSkipped):
+        execute(MoveFile(source=source, destination=destination, overwrite=False))
+
+    assert destination.read_text() == "old"
+    assert source.exists()
+    assert source.read_text() == "new"
+    assert "overwrite=False" in caplog.text
+
+
 def test_execute_delete_file(tmp_path: Path) -> None:
     path = tmp_path / "to-delete.txt"
     path.write_text("bye")
@@ -129,6 +148,15 @@ def test_execute_edit_file_prepend_empty_content(tmp_path: Path) -> None:
     execute(EditFile(path=path, action=EditAction.PREPEND, content=b""))
 
     assert path.read_bytes() == b"existing"
+
+
+def test_execute_create_file_overwrites_existing(tmp_path: Path) -> None:
+    path = tmp_path / "existing.txt"
+    path.write_bytes(b"old content")
+
+    execute(CreateFile(path=path, content=b"new content"))
+
+    assert path.read_bytes() == b"new content"
 
 
 def test_execute_create_file_atomic(tmp_path: Path) -> None:

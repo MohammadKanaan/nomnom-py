@@ -26,6 +26,10 @@ def execute(effect: Effect) -> None:
                 logger.warning(f"Move skipped; source missing: {src} -> {dst}")
                 raise EffectSkipped(f"Move skipped; source missing: {src} -> {dst}")
 
+            if dst.exists() and not overwrite:
+                logger.warning(f"Move skipped; destination exists and overwrite=False: {dst}")
+                raise EffectSkipped(f"Move skipped; destination exists and overwrite=False: {dst}")
+
             if dst.exists() and overwrite:
                 logger.warning(f"Move overwriting existing file: {dst}")
 
