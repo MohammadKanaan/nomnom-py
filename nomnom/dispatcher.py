@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import deque
 from typing import TYPE_CHECKING
 
 from nomnom import executor
@@ -21,59 +22,64 @@ def dispatch(
     plugins: list[PluginEntry],
     *,
     stats: WatchStats,
-    depth: int = 0,
     max_depth: int = DEFAULT_MAX_DEPTH,
     dry_run: bool = False,
 ) -> None:
-    if depth >= max_depth:
-        logger.warning(
-            f"Max event depth ({max_depth}) reached, dropping event: "
-            f"{event.event_type.value} {event.path}"
-        )
-        return
+    stack: deque[tuple[FileEvent, int]] = deque()
+    stack.append((event, 0))
 
-    stats.record_event()
+    while stack:
+        current_event, depth = stack.pop()
 
-    for name, plugin in plugins:
-        try:
-            if not plugin.matches(event):
-                continue
-        except Exception:
-            logger.exception(f"Plugin '{name}' crashed in matches()")
+        if depth >= max_depth:
+            logger.warning(
+                f"Max event depth ({max_depth}) reached, dropping event: "
+                f"{current_event.event_type.value} {current_event.path}"
+            )
             continue
 
-        logger.info(f"Plugin '{name}' matched {event.path}")
-        stats.record_match(name)
+        stats.record_event()
 
-        try:
-            effects = plugin.handle(event)
-        except Exception:
-            logger.exception(f"Plugin '{name}' crashed in handle()")
-            continue
+        emitted: list[FileEvent] = []
 
-        for effect in effects:
-            if isinstance(effect, EmitEvent):
-                dispatch(
-                    effect.event,
-                    plugins,
-                    stats=stats,
-                    depth=depth + 1,
-                    max_depth=max_depth,
-                    dry_run=dry_run,
-                )
-            else:
-                if dry_run:
-                    logger.info(
-                        f"[DRY RUN] Would execute {type(effect).__name__}: {effect}"
-                    )
-                    stats.record_dry_run_effect()
+        for name, plugin in plugins:
+            try:
+                if not plugin.matches(current_event):
                     continue
+            except Exception:
+                logger.exception(f"Plugin '{name}' crashed in matches()")
+                continue
 
-                try:
-                    applied = executor.execute(effect)
-                    if applied:
-                        stats.record_effect()
-                except Exception:
-                    logger.exception(
-                        f"Effect {type(effect).__name__} failed (from plugin '{name}')"
-                    )
+            logger.info(f"Plugin '{name}' matched {current_event.path}")
+            stats.record_match(name)
+
+            try:
+                effects = plugin.handle(current_event)
+            except Exception:
+                logger.exception(f"Plugin '{name}' crashed in handle()")
+                continue
+
+            for effect in effects:
+                if isinstance(effect, EmitEvent):
+                    emitted.append(effect.event)
+                else:
+                    if dry_run:
+                        logger.info(
+                            f"[DRY RUN] Would execute {type(effect).__name__}: {effect}"
+                        )
+                        stats.record_dry_run_effect()
+                        continue
+
+                    try:
+                        applied = executor.execute(effect)
+                        if applied:
+                            stats.record_effect()
+                    except Exception:
+                        logger.exception(
+                            f"Effect {type(effect).__name__} failed (from plugin '{name}')"
+                        )
+
+        # Push in reverse so first-emitted is popped first (DFS left-to-right order)
+        # TODO: add tests for multi-plugin emit interleaving order
+        for emitted_event in reversed(emitted):
+            stack.append((emitted_event, depth + 1))
