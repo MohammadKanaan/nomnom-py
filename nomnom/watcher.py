@@ -206,6 +206,8 @@ def run_watcher(
 
     try:
         known_paths: set[str] = set()
+        for watch_path in watch_paths:
+            known_paths.update(str(p) for p in watch_path.rglob("*") if p.is_file())
         for raw_changes in watch(*watch_paths):
             for change_type, changed in _coalesce_changes(raw_changes, known_paths):
                 event_type = CHANGE_MAP.get(change_type)

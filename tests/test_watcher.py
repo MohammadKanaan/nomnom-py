@@ -343,6 +343,37 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
     assert len(emitted) == 1
 
 
+def test_run_watcher_seeds_known_paths_from_existing_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "inbox"
+    watch_path.mkdir()
+    existing = watch_path / "pre-existing.txt"
+    existing.write_text("hello")
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+
+    class StubConsole:
+        def print(self, _value) -> None:
+            return
+
+    emitted: list[object] = []
+
+    def fake_watch(*_args):
+        yield {(Change.added, str(existing))}
+
+    def fake_dispatch(event, _plugins, **_kwargs):
+        emitted.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.watch", fake_watch)
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    run_watcher(cfg, [], StubConsole())
+
+    assert len(emitted) == 1
+    assert emitted[0].event_type is EventType.MODIFIED
+
+
 def test_coalesce_created_unknown_path_stays_created(tmp_path: Path) -> None:
     path = str(tmp_path / "new.txt")
     known: set[str] = set()
