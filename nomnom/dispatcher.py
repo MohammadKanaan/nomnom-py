@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from nomnom import executor
 from nomnom.effects import EmitEvent
 from nomnom.events import FileEvent
-from nomnom.plugin import Plugin
+from nomnom.plugin import PluginEntry
 
 if TYPE_CHECKING:
     from nomnom.stats import WatchStats
@@ -18,9 +18,9 @@ DEFAULT_MAX_DEPTH = 10
 
 def dispatch(
     event: FileEvent,
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     *,
-    stats: WatchStats | None = None,
+    stats: WatchStats,
     depth: int = 0,
     max_depth: int = DEFAULT_MAX_DEPTH,
     dry_run: bool = False,
@@ -32,8 +32,7 @@ def dispatch(
         )
         return
 
-    if stats is not None:
-        stats.record_event()
+    stats.record_event()
 
     for name, plugin in plugins:
         try:
@@ -44,8 +43,7 @@ def dispatch(
             continue
 
         logger.info(f"Plugin '{name}' matched {event.path}")
-        if stats is not None:
-            stats.record_match(name)
+        stats.record_match(name)
 
         try:
             effects = plugin.handle(event)
@@ -68,13 +66,12 @@ def dispatch(
                     logger.info(
                         f"[DRY RUN] Would execute {type(effect).__name__}: {effect}"
                     )
-                    if stats is not None:
-                        stats.record_dry_run_effect()
+                    stats.record_dry_run_effect()
                     continue
 
                 try:
                     applied = executor.execute(effect)
-                    if stats is not None and applied:
+                    if applied:
                         stats.record_effect()
                 except Exception:
                     logger.exception(
