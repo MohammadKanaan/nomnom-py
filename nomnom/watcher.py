@@ -11,7 +11,7 @@ from watchfiles import Change, watch
 from nomnom.config import Config, WatchGroup
 from nomnom.dispatcher import dispatch
 from nomnom.events import EventType, FileEvent
-from nomnom.plugin import Plugin
+from nomnom.plugin import PluginEntry
 from nomnom.stats import WatchStats
 
 if TYPE_CHECKING:
@@ -41,9 +41,9 @@ def _watch_root_specificity(entry: GroupIndexEntry) -> int:
     return len(root_path.parts)
 
 
-def _build_group_index(config: Config) -> list[GroupIndexEntry]:
+def _build_group_index(watch_groups: list[WatchGroup]) -> list[GroupIndexEntry]:
     index: list[GroupIndexEntry] = []
-    for group in config.watch_groups:
+    for group in watch_groups:
         for path in group.paths:
             index.append((path.resolve(), group))
     return sorted(index, key=_watch_root_specificity, reverse=True)
@@ -114,16 +114,25 @@ def _matches_filters(path: Path, group: WatchGroup) -> bool:
     if group.include and not _matches_patterns(path.name, group.include):
         return False
 
-    if group.exclude and _matches_patterns(path.name, group.exclude):
-        return False
+    return not (group.exclude and _matches_patterns(path.name, group.exclude))
 
-    return True
+
+def _print_event(console: "Console", event: FileEvent) -> None:
+    color, symbol = EVENT_STYLES[event.event_type]
+    timestamp = event.created_at.strftime("%H:%M:%S")
+    console.print(
+        f"[dim]{timestamp}[/] "
+        f"[{color}]{symbol}[/] "
+        f"[{color}]{event.event_type.value.upper()}[/]  "
+        f"{escape(event.path.name)}  "
+        f"[dim]{escape(event.watch_group)}[/]"
+    )
 
 
 def _scan_existing_files(
     watch_paths: list[Path],
     group_index: list[GroupIndexEntry],
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     console: "Console",
     dry_run: bool,
     stats: WatchStats,
@@ -143,22 +152,14 @@ def _scan_existing_files(
                 created_at=datetime.now(),
             )
 
-            color, symbol = EVENT_STYLES[EventType.CREATED]
-            timestamp = event.created_at.strftime("%H:%M:%S")
-            console.print(
-                f"[dim]{timestamp}[/] "
-                f"[{color}]{symbol}[/] "
-                f"[{color}]{event.event_type.value.upper()}[/]  "
-                f"{escape(path.name)}  "
-                f"[dim]{escape(watch_group.name)}[/]"
-            )
+            _print_event(console, event)
 
             dispatch(event, plugins, dry_run=dry_run, stats=stats)
 
 
 def run_watcher(
     cfg: Config,
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     console: "Console",
     *,
     dry_run: bool = False,
@@ -188,9 +189,7 @@ def run_watcher(
         logger.error("No valid paths to watch")
         return
 
-    group_index = _build_group_index(
-        Config(watch_groups=active_watch_groups, plugins=cfg.plugins)
-    )
+    group_index = _build_group_index(active_watch_groups)
 
     if once:
         _scan_existing_files(
@@ -228,19 +227,12 @@ def run_watcher(
                     created_at=datetime.now(),
                 )
 
-                # Color-coded event display
-                color, symbol = EVENT_STYLES[event_type]
-                timestamp = event.created_at.strftime("%H:%M:%S")
-                console.print(
-                    f"[dim]{timestamp}[/] "
-                    f"[{color}]{symbol}[/] "
-                    f"[{color}]{event_type.value.upper()}[/]  "
-                    f"{escape(path.name)}  "
-                    f"[dim]{escape(watch_group.name)}[/]"
-                )
+                _print_event(console, event)
 
                 dispatch(event, plugins, dry_run=dry_run, stats=stats)
     except KeyboardInterrupt:
         pass
+    except OSError as exc:
+        logger.warning("Filesystem watcher encountered an unrecoverable error: %s", exc)
     finally:
         stats.print_summary(console)

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import typer
@@ -25,6 +26,8 @@ from nomnom.discovery import (
 from nomnom.plugin import has_setup, run_plugin_setup
 from nomnom.watcher import run_watcher
 
+DEFAULT_CONFIG = os.environ.get("NOMNOM_CONFIG", "config.toml")
+
 app = typer.Typer(
     help="Plugin-based file watcher CLI",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -47,7 +50,7 @@ def watch(
         help="Watch group name to process in --once mode",
     ),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -88,7 +91,7 @@ def watch(
 @app.command()
 def setup(
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -112,7 +115,7 @@ def plugin_add(
         help="Skip interactive plugin setup",
     ),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -137,7 +140,7 @@ def plugin_add(
 def plugin_remove(
     package: str = typer.Argument(help="Plugin package name to remove"),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -155,7 +158,7 @@ def plugin_remove(
 def plugin_disable(
     plugin_name: str = typer.Argument(help="Plugin name to disable"),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -172,7 +175,7 @@ def plugin_disable(
 def plugin_enable(
     plugin_name: str = typer.Argument(help="Plugin name to enable"),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -188,7 +191,7 @@ def plugin_enable(
 @plugin_app.command("list")
 def plugin_list(
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",

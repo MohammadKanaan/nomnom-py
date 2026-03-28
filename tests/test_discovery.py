@@ -12,6 +12,7 @@ from nomnom.discovery import (
     get_installed_plugin_names,
     prioritize_plugins,
 )
+from nomnom.plugin import PluginEntry
 
 
 def test_load_plugin_from_target_rejects_absolute_module_path(
@@ -179,7 +180,7 @@ def test_discover_local_nonexistent_dir(tmp_path: Path) -> None:
 
 
 def test_prioritize_plugins_sorts_by_priority() -> None:
-    plugins = [("alpha", object()), ("beta", object()), ("gamma", object())]
+    plugins = [PluginEntry("alpha", object()), PluginEntry("beta", object()), PluginEntry("gamma", object())]
     config = Config(
         watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
         plugins=[
@@ -195,7 +196,7 @@ def test_prioritize_plugins_sorts_by_priority() -> None:
 
 
 def test_prioritize_plugins_default_priority() -> None:
-    plugins = [("configured", object()), ("defaulted", object())]
+    plugins = [PluginEntry("configured", object()), PluginEntry("defaulted", object())]
     config = Config(
         watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
         plugins=[PluginConfig(name="configured", priority=5)],

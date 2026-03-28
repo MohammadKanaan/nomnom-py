@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from time import monotonic
 
+from rich.console import Console
 from rich.table import Table
 
 
@@ -24,7 +25,7 @@ class WatchStats:
     def record_dry_run_effect(self) -> None:
         self.effects_skipped_dry_run += 1
 
-    def print_summary(self, console) -> None:
+    def print_summary(self, console: Console) -> None:
         duration = monotonic() - self.start_time
 
         table = Table(title="Watch Summary")
