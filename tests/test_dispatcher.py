@@ -256,12 +256,17 @@ def test_dispatch_records_stats_for_emitted_events(
 def test_dispatch_does_not_count_noop_effects_as_applied(
     monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
 ) -> None:
+    from nomnom.executor import EffectSkipped
+
     event = make_event()
     effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
     plugin = stub_plugin_cls(matches_result=True, effects=[effect])
     stats = WatchStats()
 
-    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: False)
+    def raise_effect_skipped(_effect):
+        raise EffectSkipped()
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", raise_effect_skipped)
 
     dispatch(event, [("stub", plugin)], stats=stats)
 

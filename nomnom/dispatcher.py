@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from nomnom import executor
 from nomnom.effects import EmitEvent
 from nomnom.events import FileEvent
+from nomnom.executor import EffectSkipped
 from nomnom.plugin import PluginEntry
 
 if TYPE_CHECKING:
@@ -71,9 +72,10 @@ def dispatch(
                         continue
 
                     try:
-                        applied = executor.execute(effect)
-                        if applied:
-                            stats.record_effect()
+                        executor.execute(effect)
+                        stats.record_effect()
+                    except EffectSkipped:
+                        pass
                     except Exception:
                         logger.exception(
                             f"Effect {type(effect).__name__} failed (from plugin '{name}')"

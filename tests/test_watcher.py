@@ -5,6 +5,7 @@ import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.events import EventType
 from nomnom.stats import WatchStats
 from nomnom.watcher import (
@@ -368,3 +369,106 @@ def test_run_watcher_filters_use_matched_root_when_group_names_repeat(
     run_watcher(cfg, [], StubConsole())
 
     assert len(emitted) == 1
+
+
+def test_run_watcher_seeds_known_paths_from_existing_files(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    watch_path = tmp_path / "inbox"
+    watch_path.mkdir()
+    existing = watch_path / "pre-existing.txt"
+    existing.write_text("hello")
+
+    cfg = Config(watch_groups=[WatchGroup(name="inbox", paths=[watch_path])], plugins=[])
+
+    class StubConsole:
+        def print(self, _value) -> None:
+            return
+
+    emitted: list[object] = []
+
+    def fake_watch(*_args):
+        yield {(Change.added, str(existing))}
+
+    def fake_dispatch(event, _plugins, **_kwargs):
+        emitted.append(event)
+
+    monkeypatch.setattr("nomnom.watcher.watch", fake_watch)
+    monkeypatch.setattr("nomnom.watcher.dispatch", fake_dispatch)
+
+    run_watcher(cfg, [], StubConsole())
+
+    assert len(emitted) == 1
+    assert emitted[0].event_type is EventType.MODIFIED
+
+
+def test_coalesce_created_unknown_path_stays_created(tmp_path: Path) -> None:
+    path = str(tmp_path / "new.txt")
+    known: set[str] = set()
+
+    result = _coalesce_changes({(Change.added, path)}, known)
+
+    assert result == [(Change.added, path)]
+    assert path in known
+
+
+def test_coalesce_created_known_path_downgrades_to_modified(tmp_path: Path) -> None:
+    path = str(tmp_path / "existing.txt")
+    known: set[str] = {path}
+
+    result = _coalesce_changes({(Change.added, path)}, known)
+
+    assert result == [(Change.modified, path)]
+
+
+def test_coalesce_ignores_internal_temp_paths(tmp_path: Path) -> None:
+    real_path = str(tmp_path / "note.txt")
+    temp_path = str(tmp_path / f"{EFFECT_TEMPFILE_PREFIX}12345")
+    known: set[str] = set()
+
+    result = _coalesce_changes(
+        {
+            (Change.added, temp_path),
+            (Change.deleted, temp_path),
+            (Change.added, real_path),
+        },
+        known,
+    )
+
+    assert result == [(Change.added, real_path)]
+    assert temp_path not in known
+    assert real_path in known
+
+
+def test_coalesce_deleted_removes_from_known_paths(tmp_path: Path) -> None:
+    path = str(tmp_path / "gone.txt")
+    known: set[str] = {path}
+
+    _coalesce_changes({(Change.deleted, path)}, known)
+
+    assert path not in known
+
+
+def test_coalesce_deleted_then_created_stays_created_across_batches(tmp_path: Path) -> None:
+    path = str(tmp_path / "cycled.txt")
+    known: set[str] = {path}
+
+    _coalesce_changes({(Change.deleted, path)}, known)
+    result = _coalesce_changes({(Change.added, path)}, known)
+
+    assert result == [(Change.added, path)]
+    assert path in known
+
+
+def test_coalesce_known_paths_tracking_across_batches(tmp_path: Path) -> None:
+    path = str(tmp_path / "note.txt")
+    known: set[str] = set()
+
+    # First batch: file created → CREATED, added to known_paths
+    result1 = _coalesce_changes({(Change.added, path)}, known)
+    assert result1 == [(Change.added, path)]
+    assert path in known
+
+    # Second batch: atomic write → CREATED downgraded to MODIFIED
+    result2 = _coalesce_changes({(Change.added, path)}, known)
+    assert result2 == [(Change.modified, path)]
