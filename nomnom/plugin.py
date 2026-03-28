@@ -1,4 +1,4 @@
-from typing import Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable, NamedTuple
 
 from nomnom.effects import Effect
 from nomnom.events import FileEvent
@@ -12,6 +12,11 @@ class Plugin(Protocol):
 @runtime_checkable
 class SetupPlugin(Plugin, Protocol):
     def setup(self) -> None: ...
+
+
+class PluginEntry(NamedTuple):
+    name: str
+    plugin: Plugin
 
 
 def has_setup(plugin: Plugin) -> bool:

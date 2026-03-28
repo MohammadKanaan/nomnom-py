@@ -5,16 +5,16 @@ import sys
 import tomllib
 from importlib.metadata import entry_points
 from pathlib import Path
+from typing import cast
 
-from nomnom.config import Config
-from nomnom.plugin import Plugin
+from nomnom.config import Config, DEFAULT_PLUGIN_PRIORITY
+from nomnom.plugin import Plugin, PluginEntry
 from nomnom.validation import validate_module_path_containment
 
 logger = logging.getLogger(__name__)
 
 PLUGINS_DIR = Path("plugins")
 ENTRY_POINT_GROUP = "nomnom.plugins"
-
 
 def _snapshot_canonical_modules(module_path: str) -> dict[str, object]:
     prefix = f"{module_path}."
@@ -43,7 +43,7 @@ def _restore_canonical_modules(
         sys.modules[key] = value
 
 
-def discover_plugins() -> list[tuple[str, Plugin]]:
+def discover_plugins() -> list[PluginEntry]:
     installed = _discover_installed()
     local = _discover_local()
 
@@ -56,37 +56,37 @@ def discover_plugins() -> list[tuple[str, Plugin]]:
             logger.info(f"Local plugin '{name}' overrides installed version")
         merged[name] = plugin
 
-    return list(merged.items())
+    return [PluginEntry(n, p) for n, p in merged.items()]
 
 
 def get_installed_plugin_names() -> set[str]:
     return {ep.name for ep in entry_points(group=ENTRY_POINT_GROUP)}
 
 
-def discover_new_plugins(known_names: set[str]) -> list[tuple[str, Plugin]]:
+def discover_new_plugins(known_names: set[str]) -> list[PluginEntry]:
     importlib.invalidate_caches()
     installed = _discover_installed()
-    return [(name, plugin) for name, plugin in installed if name not in known_names]
+    return [PluginEntry(name, plugin) for name, plugin in installed if name not in known_names]
 
 
-def _discover_installed() -> list[tuple[str, Plugin]]:
-    plugins: list[tuple[str, Plugin]] = []
+def _discover_installed() -> list[PluginEntry]:
+    plugins: list[PluginEntry] = []
     for ep in entry_points(group=ENTRY_POINT_GROUP):
         try:
             plugin_class = ep.load()
             plugin = plugin_class()
-            plugins.append((ep.name, plugin))
+            plugins.append(PluginEntry(ep.name, plugin))
             logger.info(f"Loaded installed plugin: {ep.name}")
         except Exception as e:
             logger.warning(f"Failed to load installed plugin '{ep.name}': {e}")
     return plugins
 
 
-def _discover_local(plugins_dir: Path = PLUGINS_DIR) -> list[tuple[str, Plugin]]:
+def _discover_local(plugins_dir: Path = PLUGINS_DIR) -> list[PluginEntry]:
     if not plugins_dir.is_dir():
         return []
 
-    plugins: list[tuple[str, Plugin]] = []
+    plugins: list[PluginEntry] = []
 
     for child in sorted(plugins_dir.iterdir()):
         pyproject = child / "pyproject.toml"
@@ -109,7 +109,7 @@ def _discover_local(plugins_dir: Path = PLUGINS_DIR) -> list[tuple[str, Plugin]]
             for name, target in ep_map.items():
                 plugin = _load_plugin_from_target(child, name, target)
                 if plugin is not None:
-                    plugins.append((name, plugin))
+                    plugins.append(PluginEntry(name, plugin))
 
         except Exception as e:
             logger.warning(f"Failed to read local plugin at '{child}': {e}")
@@ -163,7 +163,7 @@ def _load_plugin_from_target(
             _restore_canonical_modules(module_path, canonical_snapshot)
 
         plugin_class = getattr(module, class_name)
-        plugin = plugin_class()
+        plugin = cast(Plugin, plugin_class())
         logger.info(f"Loaded local plugin: {name}")
         return plugin
 
@@ -173,8 +173,8 @@ def _load_plugin_from_target(
 
 
 def prioritize_plugins(
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     config: Config,
-) -> list[tuple[str, Plugin]]:
+) -> list[PluginEntry]:
     priority_map = {p.name: p.priority for p in config.plugins}
-    return sorted(plugins, key=lambda p: priority_map.get(p[0], 50))
+    return sorted(plugins, key=lambda p: priority_map.get(p.name, DEFAULT_PLUGIN_PRIORITY))

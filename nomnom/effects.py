@@ -18,6 +18,7 @@ class EditAction(Enum):
 class MoveFile:
     source: Path
     destination: Path
+    overwrite: bool = True
 
 
 @dataclass
