@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -149,6 +150,38 @@ def test_execute_edit_file_atomic(tmp_path: Path) -> None:
     assert path.read_bytes() == b"original appended"
     # No leftover temp files
     assert len(list(tmp_path.iterdir())) == 1
+
+
+def test_execute_create_file_preserves_existing_permissions(tmp_path: Path) -> None:
+    path = tmp_path / "existing.txt"
+    path.write_bytes(b"old")
+    os.chmod(path, 0o755)
+
+    execute(CreateFile(path=path, content=b"new"))
+
+    assert path.read_bytes() == b"new"
+    assert path.stat().st_mode & 0o777 == 0o755
+
+
+def test_execute_create_file_new_file_respects_umask(tmp_path: Path) -> None:
+    path = tmp_path / "brand_new.txt"
+
+    execute(CreateFile(path=path, content=b"content"))
+
+    # Should not be 0o600 (the NamedTemporaryFile default)
+    mode = path.stat().st_mode & 0o777
+    assert mode != 0o600
+
+
+def test_execute_edit_file_preserves_permissions(tmp_path: Path) -> None:
+    path = tmp_path / "file.txt"
+    path.write_bytes(b"hello")
+    os.chmod(path, 0o755)
+
+    execute(EditFile(path=path, action=EditAction.APPEND, content=b" world"))
+
+    assert path.read_bytes() == b"hello world"
+    assert path.stat().st_mode & 0o777 == 0o755
 
 
 def test_execute_unknown_effect_raises_type_error() -> None:
