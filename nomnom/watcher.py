@@ -10,6 +10,7 @@ from watchfiles import Change, watch
 
 from nomnom.config import Config, WatchGroup
 from nomnom.dispatcher import dispatch
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.events import EventType, FileEvent
 from nomnom.plugin import PluginEntry
 from nomnom.stats import WatchStats
@@ -63,6 +64,10 @@ def _change_sort_key(item: RawChange) -> tuple[str, int]:
     return str(changed), int(change_type)
 
 
+def _is_internal_temp_path(changed: str) -> bool:
+    return Path(changed).name.startswith(EFFECT_TEMPFILE_PREFIX)
+
+
 def _coalesce_changes(
     changes: set[RawChange],
     known_paths: set[str] | None = None,
@@ -74,6 +79,8 @@ def _coalesce_changes(
     # Standard per-path coalescing
     by_path: dict[str, set[Change]] = {}
     for change_type, changed in changes:
+        if _is_internal_temp_path(changed):
+            continue
         by_path.setdefault(changed, set()).add(change_type)
 
     coalesced: list[RawChange] = []

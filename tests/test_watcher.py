@@ -5,6 +5,7 @@ import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.events import EventType
 from nomnom.stats import WatchStats
 from nomnom.watcher import (
@@ -418,6 +419,25 @@ def test_coalesce_created_known_path_downgrades_to_modified(tmp_path: Path) -> N
     result = _coalesce_changes({(Change.added, path)}, known)
 
     assert result == [(Change.modified, path)]
+
+
+def test_coalesce_ignores_internal_temp_paths(tmp_path: Path) -> None:
+    real_path = str(tmp_path / "note.txt")
+    temp_path = str(tmp_path / f"{EFFECT_TEMPFILE_PREFIX}12345")
+    known: set[str] = set()
+
+    result = _coalesce_changes(
+        {
+            (Change.added, temp_path),
+            (Change.deleted, temp_path),
+            (Change.added, real_path),
+        },
+        known,
+    )
+
+    assert result == [(Change.added, real_path)]
+    assert temp_path not in known
+    assert real_path in known
 
 
 def test_coalesce_deleted_removes_from_known_paths(tmp_path: Path) -> None:

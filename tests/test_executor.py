@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, MoveFile
-from nomnom.executor import execute, EffectSkipped
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX, EffectSkipped, execute
 
 
 def test_execute_move_file(tmp_path: Path) -> None:
@@ -88,6 +88,17 @@ def test_execute_delete_file_missing_is_skipped(
         execute(DeleteFile(path=path))
 
     assert "Delete skipped; file missing" in caplog.text
+
+
+def test_execute_delete_dangling_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "missing-target.txt"
+    path = tmp_path / "dangling-link.txt"
+    path.symlink_to(target)
+
+    execute(DeleteFile(path=path))
+
+    assert not path.exists()
+    assert not path.is_symlink()
 
 
 def test_execute_create_file(tmp_path: Path) -> None:
@@ -210,6 +221,32 @@ def test_execute_edit_file_preserves_permissions(tmp_path: Path) -> None:
 
     assert path.read_bytes() == b"hello world"
     assert path.stat().st_mode & 0o777 == 0o755
+
+
+def test_execute_create_file_preserves_symlink_target(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_bytes(b"old")
+    path = tmp_path / "alias.txt"
+    path.symlink_to(target)
+
+    execute(CreateFile(path=path, content=b"new"))
+
+    assert path.is_symlink()
+    assert target.read_bytes() == b"new"
+    assert path.read_bytes() == b"new"
+
+
+def test_execute_edit_file_preserves_symlink_target(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_bytes(b"hello")
+    path = tmp_path / "alias.txt"
+    path.symlink_to(target)
+
+    execute(EditFile(path=path, action=EditAction.APPEND, content=b" world"))
+
+    assert path.is_symlink()
+    assert target.read_bytes() == b"hello world"
+    assert path.read_bytes() == b"hello world"
 
 
 def test_execute_unknown_effect_raises_type_error() -> None:
