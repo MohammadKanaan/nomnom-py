@@ -11,9 +11,6 @@ from nomnom.events import FileEvent
 
 logger = logging.getLogger(__name__)
 
-PLUGIN_ROOT = Path(__file__).resolve().parent.parent
-RULES_PATH = PLUGIN_ROOT / "rules.toml"
-
 VALID_EVENTS = {"created", "modified", "deleted"}
 VALID_ACTIONS = {"prepend", "append", "delete", "move"}
 
@@ -37,11 +34,11 @@ class Rule:
 
 
 class RulesPlugin:
-    def __init__(self) -> None:
+    def __init__(self, rules_path: Path | None = None) -> None:
+        self._rules_path = rules_path or Path("rules.toml")
         self._rules = self._load_rules()
 
     def matches(self, event: FileEvent) -> bool:
-        # Cache properties to avoid redundant attribute access overhead in the loop
         event_type_value = event.event_type.value
         watch_group = event.watch_group
         path_name = event.path.name
@@ -50,7 +47,6 @@ class RulesPlugin:
     def handle(self, event: FileEvent) -> list[Effect]:
         effects: list[Effect] = []
 
-        # Cache properties to avoid redundant attribute access overhead in the loop
         event_type_value = event.event_type.value
         watch_group = event.watch_group
         path_name = event.path.name
@@ -91,14 +87,14 @@ class RulesPlugin:
         return effects
 
     def _load_rules(self) -> list[Rule]:
-        if not RULES_PATH.is_file():
-            logger.info("Rules file not found at %s", RULES_PATH)
+        if not self._rules_path.is_file():
+            logger.info("Rules file not found at %s", self._rules_path)
             return []
 
         try:
-            raw = tomllib.loads(RULES_PATH.read_text())
+            raw = tomllib.loads(self._rules_path.read_text())
         except Exception as exc:
-            logger.warning("Failed to parse rules file at %s: %s", RULES_PATH, exc)
+            logger.warning("Failed to parse rules file at %s: %s", self._rules_path, exc)
             return []
 
         items = raw.get("rule")
@@ -117,7 +113,7 @@ class RulesPlugin:
         logger.info(
             "Loaded %d rule(s) from %s. Restart nomnom to pick up changes.",
             len(rules),
-            RULES_PATH,
+            self._rules_path,
         )
         return rules
 
@@ -147,9 +143,7 @@ def _parse_rule(candidate: object) -> Rule | None:
 
     if action in {"prepend", "append"} and not isinstance(content, str):
         return None
-    if action == "move" and (
-        not isinstance(destination, str) or not destination.strip()
-    ):
+    if action == "move" and (not isinstance(destination, str) or not destination.strip()):
         return None
 
     try:

@@ -3,11 +3,13 @@ import importlib.util
 import logging
 import sys
 import tomllib
+from collections.abc import Callable
 from importlib.metadata import entry_points
 from pathlib import Path
 from types import ModuleType
 from typing import cast
 
+from nomnom.builtin.rules import RulesPlugin
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
 from nomnom.plugin import Plugin, PluginEntry
 from nomnom.validation import validate_module_path_containment
@@ -16,6 +18,16 @@ logger = logging.getLogger(__name__)
 
 PLUGINS_DIR = Path("plugins")
 ENTRY_POINT_GROUP = "nomnom.plugins"
+
+
+def _create_rules_plugin(rules_path: Path | None) -> Plugin:
+    return RulesPlugin(rules_path=rules_path)
+
+
+BUILTIN_PLUGIN_FACTORIES: dict[str, Callable[[Path | None], Plugin]] = {
+    "rules": _create_rules_plugin,
+}
+
 
 def _snapshot_canonical_modules(module_path: str) -> dict[str, ModuleType]:
     prefix = f"{module_path}."
@@ -44,20 +56,49 @@ def _restore_canonical_modules(
         sys.modules[key] = value
 
 
-def discover_plugins() -> list[PluginEntry]:
+def _discover_builtin(rules_path: Path | None = None) -> list[PluginEntry]:
+    plugins: list[PluginEntry] = []
+    for name, factory in BUILTIN_PLUGIN_FACTORIES.items():
+        try:
+            plugins.append(PluginEntry(name, factory(rules_path)))
+            logger.info("Loaded builtin plugin: %s", name)
+        except Exception as e:
+            logger.warning("Failed to load builtin plugin '%s': %s", name, e)
+    return plugins
+
+
+def _merge_plugin_sources(
+    *sources: tuple[str, list[PluginEntry]],
+) -> list[PluginEntry]:
+    merged: dict[str, Plugin] = {}
+    source_by_name: dict[str, str] = {}
+
+    for source_name, plugins in sources:
+        for name, plugin in plugins:
+            previous_source = source_by_name.get(name)
+            if previous_source is not None:
+                logger.info(
+                    "%s plugin '%s' overrides %s version",
+                    source_name.capitalize(),
+                    name,
+                    previous_source,
+                )
+            merged[name] = plugin
+            source_by_name[name] = source_name
+
+    return [PluginEntry(name, plugin) for name, plugin in merged.items()]
+
+
+def discover_plugins(*, rules_path: Path | None = None) -> list[PluginEntry]:
+    builtin = _discover_builtin(rules_path)
     installed = _discover_installed()
     local = _discover_local()
 
-    # local plugins override installed ones with the same name
-    merged: dict[str, Plugin] = {}
-    for name, plugin in installed:
-        merged[name] = plugin
-    for name, plugin in local:
-        if name in merged:
-            logger.info(f"Local plugin '{name}' overrides installed version")
-        merged[name] = plugin
-
-    return [PluginEntry(n, p) for n, p in merged.items()]
+    return _merge_plugin_sources(
+        ("builtin", builtin),
+        ("installed", installed),
+        ("local", local),
+    )
 
 
 def get_installed_plugin_names() -> set[str]:

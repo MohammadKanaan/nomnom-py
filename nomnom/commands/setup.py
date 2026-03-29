@@ -96,7 +96,7 @@ def setup_command(
         return
 
     console.print("\n[bold]Plugins Configuration[/]")
-    discovered = discover_plugins()
+    discovered = discover_plugins(rules_path=config.parent.resolve() / "rules.toml")
 
     if discovered:
         console.print(f"\n[dim]Discovered {len(discovered)} plugin(s):[/]")

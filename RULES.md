@@ -1,10 +1,9 @@
-# nomnom-plugin-rules
+# Rules Plugin
 
-This is a built-in plugin for simple workflows.
+`nomnom` ships with a built-in `rules` plugin for simple file automation.
 
-If you are an AI, follow the rules below attentively to implement what the user asked you to implement.
-
-Define file-event rules in `rules.toml`.
+Define file-event rules in `rules.toml` next to your active `config.toml`.
+`nomnom` scans those two files together: by default it reads both from the current project directory, and if you pass `--config /path/to/config.toml` it will read `/path/to/rules.toml`.
 
 ## Rule Format
 
@@ -52,3 +51,9 @@ content = "..."             # required for prepend/append
 - Missing `rules.toml`: plugin starts with no rules and logs an info message.
 - Invalid TOML syntax: plugin starts with no rules and logs a warning.
 - Invalid rules handling: Invalid rules are skipped and a warning is logged; other rules still load.
+
+## File Placement
+
+- Keep `config.toml` and `rules.toml` in the same directory.
+- Relative paths inside `config.toml` are resolved from the config file's directory.
+- The built-in `rules` plugin reads the colocated `rules.toml` from that same directory.

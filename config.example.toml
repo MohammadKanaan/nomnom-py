@@ -1,5 +1,7 @@
+# Keep this file next to rules.toml when using the built-in rules plugin.
+# nomnom reads both files from the same directory.
 plugins = [
-    { name = "nomnom-plugin-rules", priority = 10 },
+    { name = "rules", priority = 10 },
 ]
 
 [[watch]]

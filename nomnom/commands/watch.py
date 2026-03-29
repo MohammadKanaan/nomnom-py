@@ -63,7 +63,7 @@ def watch_command(
             )
             raise typer.Exit(code=1)
 
-    raw_plugins = discover_plugins()
+    raw_plugins = discover_plugins(rules_path=config.parent.resolve() / "rules.toml")
     prioritized_plugins = prioritize_plugins(raw_plugins, cfg)
 
     config_plugin_status = {p.name: p.enabled for p in cfg.plugins}
