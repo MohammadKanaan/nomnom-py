@@ -1,105 +1,98 @@
 # nomnom
 
-**nomnom** consists of a file watcher core that fires events, and a plugin ecosystem that handles effects.
-You can install plugins, make your own, or use the built-in rules plugin for simpler flows.
+`nomnom` is an extensible file watcher for local automation. The core detects file changes and fires events. Plugins do the actual work: moving files, enriching them, or kicking off downstream workflows.
 
-## Quick Start
-
-**1. Install**
+## Install
 
 ```bash
 pip install nomnom
 ```
 
-**2. Initialize**
+## Quick Start
+
+### Initialize
+
 Generates a default `config.toml` in your project root.
 
 ```bash
 nomnom setup
 ```
 
-**3. Watch**
+### Watch
+
 Starts watching your directories based on the configuration.
 
 ```bash
 nomnom watch
 ```
 
-## Configuration
+Use `nomnom watch --once <group>` to process a single watch group one time, or `nomnom watch --dry` to inspect behavior without applying file effects.
 
-Configure your watchers and plugins in `config.toml` (or pass `--config <path>`).
+## Example Configuration
+
+`nomnom` reads `config.toml` from the current project by default, or a custom path passed with `--config`.
 
 ```toml
-# Watch all files in the archive folder
-[[watch]]
-name = "archive"
-paths = ["./archive"]
-
-# Watch only specific extensions in the inbox
 [[watch]]
 name = "inbox"
-paths = ["./inbox"]
-extensions = [".pdf", ".txt"] 
+paths = ["./fixtures/inbox"]
+extensions = [".pdf", ".txt"]
 
-# Enable and prioritize plugins (lower runs first)
+[[watch]]
+name = "archive"
+paths = ["./fixtures/archive"]
+
 [[plugins]]
 name = "nomnom-plugin-rules"
 priority = 10
 enabled = true
 ```
 
+For a fuller starter file, see [`config.example.toml`](config.example.toml).
+
 ## Plugins
 
 ### The Built-in Rules Plugin
 
-Declarative file-event rules driven by a `rules.toml` file — no code required.
-See [`plugins/nomnom-plugin-rules/README.md`](plugins/nomnom-plugin-rules/README.md) for the rule format and options.
+A rules plugin for declarative file automation driven by `rules.toml`.
+See [`plugins/nomnom-plugin-rules/README.md`](plugins/nomnom-plugin-rules/README.md) for the rule format and supported actions.
 
 ### Installing Community Plugins
 
-You can install plugins from PyPl or GitHub
+Plugins can be installed from PyPI or directly from a Git repository:
 
 ```bash
-nomnom plugin add <name/git-link>
+nomnom plugin add <package-name-or-git-url>
 ```
 
 Example:
 
 ```bash
-nomnom plugin add git+https://github.com/MohammadKanaan/nomnom-obsidian-transcribe
+nomnom plugin add git+https://github.com/<owner>/nomnom-plugin-example
 ```
 
-### Develop Your Own
+### Creating a Plugin
 
-Quick start by scaffolding a local, auto-discoverable plugin:
+Scaffold a local plugin package inside `plugins/`:
 
 ```bash
 nomnom plugin create <name>
 ```
 
-#### Manual Development
+The generated package includes a `pyproject.toml` entry point and a stub plugin module. Local plugins are automatically discoverable, no need to configure them.
 
-A plugin should expose a class implementing `Plugin` (and optionally `SetupPlugin`). Return `Effect` subclasses to act on the filesystem:
+If you'd like to publish your plugin, move it to its own repo and publish it to GitHub or PyPI. There is no system for discovering plugins yet but shoot me an email if interested.
 
-```python
-from nomnom import Plugin, FileEvent, Effect
+## Development
 
-class MyPlugin(Plugin):
-    def matches(self, event: FileEvent) -> bool:
-        return event.path.suffix == ".txt"
-
-    def handle(self, event: FileEvent) -> list[Effect]:
-        return []  # Return your effects here
+```bash
+uv sync --dev
+uv run pytest
+uv run ruff check
 ```
 
-Register the class via an entry point in `pyproject.toml`:
+Contributor guidance lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-```toml
-[project.entry-points."nomnom.plugins"]
-my-plugin = "my_package:MyPlugin"
-```
-
-*Install the package and add it to your config with `nomnom plugin add <package>`.*
 
 ## CLI Reference
 

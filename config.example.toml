@@ -1,11 +1,11 @@
 plugins = [
-    { name = "faster-whisper", priority = 10 },
+    { name = "nomnom-plugin-rules", priority = 10 },
 ]
 
 [[watch]]
 name = "transcribe"
 paths = [
-    "/Users/user/Documents/audio",
+    "./fixtures/audio",
 ]
 # include = ["*.wav", "*.mp3"]
 # exclude = ["*.tmp", "~*"]

@@ -180,7 +180,11 @@ def test_discover_local_nonexistent_dir(tmp_path: Path) -> None:
 
 
 def test_prioritize_plugins_sorts_by_priority() -> None:
-    plugins = [PluginEntry("alpha", object()), PluginEntry("beta", object()), PluginEntry("gamma", object())]
+    plugins = [
+        PluginEntry("alpha", object()),
+        PluginEntry("beta", object()),
+        PluginEntry("gamma", object()),
+    ]
     config = Config(
         watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
         plugins=[

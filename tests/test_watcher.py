@@ -5,8 +5,8 @@ import pytest
 from watchfiles import Change
 
 from nomnom.config import Config, WatchGroup
-from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.events import EventType
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.stats import WatchStats
 from nomnom.watcher import (
     CHANGE_MAP,

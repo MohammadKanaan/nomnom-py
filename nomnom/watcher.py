@@ -10,8 +10,8 @@ from watchfiles import Change, watch
 
 from nomnom.config import Config, WatchGroup
 from nomnom.dispatcher import dispatch
-from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.events import EventType, FileEvent
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.plugin import PluginEntry
 from nomnom.stats import WatchStats
 
