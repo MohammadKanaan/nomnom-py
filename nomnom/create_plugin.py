@@ -1,5 +1,5 @@
-import typer
 import tomli_w
+import typer
 from rich.console import Console
 from rich.panel import Panel
 
@@ -23,7 +23,7 @@ def create_plugin(
             "[yellow]Plugin names should use letters, numbers, and hyphens[/]\n"
             "[dim]Examples: 'transcribe', 'pdf-parser', 'image-resizer'[/]"
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     package_name = f"nomnom-plugin-{slug}"
     module_name = f"nomnom_plugin_{slug.replace('-', '_')}"
     class_name = "".join(word.capitalize() for word in slug.split("-")) + "Plugin"
@@ -100,7 +100,7 @@ class {class_name}:
             f"to define your optional setup(), matches(), and handle() logic.\n\n"
             f"Add to your config.toml:\n"
             f'  [dim][[plugins]]\n  name = "{slug}"\n  priority = 50[/]',
-            title="nomnom create-plugin",
+            title="nomnom plugin create",
             border_style="green",
         )
     )

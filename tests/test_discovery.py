@@ -12,6 +12,7 @@ from nomnom.discovery import (
     get_installed_plugin_names,
     prioritize_plugins,
 )
+from nomnom.plugin import PluginEntry
 
 
 def test_load_plugin_from_target_rejects_absolute_module_path(
@@ -179,7 +180,7 @@ def test_discover_local_nonexistent_dir(tmp_path: Path) -> None:
 
 
 def test_prioritize_plugins_sorts_by_priority() -> None:
-    plugins = [("alpha", object()), ("beta", object()), ("gamma", object())]
+    plugins = [PluginEntry("alpha", object()), PluginEntry("beta", object()), PluginEntry("gamma", object())]
     config = Config(
         watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
         plugins=[
@@ -195,7 +196,7 @@ def test_prioritize_plugins_sorts_by_priority() -> None:
 
 
 def test_prioritize_plugins_default_priority() -> None:
-    plugins = [("configured", object()), ("defaulted", object())]
+    plugins = [PluginEntry("configured", object()), PluginEntry("defaulted", object())]
     config = Config(
         watch_groups=[WatchGroup(name="inbox", paths=[Path("./inbox")])],
         plugins=[PluginConfig(name="configured", priority=5)],
@@ -218,6 +219,97 @@ def test_get_installed_plugin_names(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     assert get_installed_plugin_names() == {"alpha", "beta"}
+
+
+def test_discover_local_supports_absolute_self_imports(tmp_path: Path) -> None:
+    plugins_dir = tmp_path / "plugins"
+    plugin_root = plugins_dir / "nomnom-plugin-abs"
+    module_dir = plugin_root / "nomnom_plugin_abs"
+    module_dir.mkdir(parents=True)
+
+    (module_dir / "helper.py").write_text("VALUE = 'ok'\n")
+    (module_dir / "__init__.py").write_text(
+        "from nomnom_plugin_abs.helper import VALUE\n"
+        "class AbsPlugin:\n"
+        "    value = VALUE\n"
+        "    def matches(self, event): return False\n"
+        "    def handle(self, event): return []\n"
+    )
+    (plugin_root / "pyproject.toml").write_text(
+        '[project]\nname = "nomnom-plugin-abs"\nversion = "0.1.0"\n\n'
+        '[project.entry-points."nomnom.plugins"]\n'
+        'abs = "nomnom_plugin_abs:AbsPlugin"\n'
+    )
+
+    discovered = _discover_local(plugins_dir)
+
+    assert len(discovered) == 1
+    name, plugin = discovered[0]
+    assert name == "abs"
+    assert plugin.value == "ok"
+
+
+def test_discover_local_namespaces_absolute_imports_to_prevent_collision(
+    tmp_path: Path,
+) -> None:
+    plugins_dir = tmp_path / "plugins"
+
+    for plugin_name, class_name, tag in [
+        ("nomnom-plugin-alpha", "AlphaPlugin", "alpha"),
+        ("nomnom-plugin-beta", "BetaPlugin", "beta"),
+    ]:
+        plugin_root = plugins_dir / plugin_name
+        module_dir = plugin_root / "nomnom_plugin_common"
+        module_dir.mkdir(parents=True)
+        (module_dir / "helper.py").write_text(f"TAG = '{tag}'\n")
+        (module_dir / "__init__.py").write_text(
+            "from nomnom_plugin_common.helper import TAG\n"
+            f"class {class_name}:\n"
+            "    tag = TAG\n"
+            "    def matches(self, event): return False\n"
+            "    def handle(self, event): return []\n"
+        )
+        (plugin_root / "pyproject.toml").write_text(
+            f'[project]\nname = "{plugin_name}"\nversion = "0.1.0"\n\n'
+            f'[project.entry-points."nomnom.plugins"]\n'
+            f'{tag} = "nomnom_plugin_common:{class_name}"\n'
+        )
+
+    discovered = _discover_local(plugins_dir)
+
+    assert len(discovered) == 2
+    tags = {plugin.tag for _, plugin in discovered}
+    assert tags == {"alpha", "beta"}
+
+
+def test_discover_local_namespaces_modules_to_prevent_collision(tmp_path: Path) -> None:
+    """Two plugins with the same internal module name must not collide in sys.modules."""
+    plugins_dir = tmp_path / "plugins"
+
+    for plugin_name, class_name, tag in [
+        ("nomnom-plugin-alpha", "AlphaPlugin", "alpha"),
+        ("nomnom-plugin-beta", "BetaPlugin", "beta"),
+    ]:
+        plugin_root = plugins_dir / plugin_name
+        module_dir = plugin_root / "nomnom_plugin_common"
+        module_dir.mkdir(parents=True)
+        (module_dir / "__init__.py").write_text(
+            f"class {class_name}:\n"
+            f"    tag = '{tag}'\n"
+            f"    def matches(self, event): return False\n"
+            f"    def handle(self, event): return []\n"
+        )
+        (plugin_root / "pyproject.toml").write_text(
+            f'[project]\nname = "{plugin_name}"\nversion = "0.1.0"\n\n'
+            f'[project.entry-points."nomnom.plugins"]\n'
+            f'{tag} = "nomnom_plugin_common:{class_name}"\n'
+        )
+
+    discovered = _discover_local(plugins_dir)
+
+    assert len(discovered) == 2
+    tags = {plugin.tag for _, plugin in discovered}
+    assert tags == {"alpha", "beta"}
 
 
 def test_discover_new_plugins_filters_known_plugins(

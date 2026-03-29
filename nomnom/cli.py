@@ -1,8 +1,10 @@
+import os
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
+from nomnom import get_version
 from nomnom.cli_commands import (
     plugin_add_command,
     plugin_disable_command,
@@ -25,6 +27,8 @@ from nomnom.discovery import (
 from nomnom.plugin import has_setup, run_plugin_setup
 from nomnom.watcher import run_watcher
 
+DEFAULT_CONFIG = os.environ.get("NOMNOM_CONFIG", "config.toml")
+
 app = typer.Typer(
     help="Plugin-based file watcher CLI",
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -36,7 +40,27 @@ plugin_app = typer.Typer(
 app.add_typer(plugin_app, name="plugin")
 console = Console()
 
-app.command("create-plugin")(create_plugin)
+plugin_app.command("create")(create_plugin)
+
+
+def _version_callback(value: bool) -> None:
+    if value:
+        console.print(f"nomnom v{get_version()}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool | None = typer.Option(
+        None,
+        "--version",
+        "-v",
+        is_eager=True,
+        help="Show version and exit.",
+        callback=_version_callback,
+    ),
+) -> None:
+    pass
 
 
 @app.command()
@@ -47,7 +71,7 @@ def watch(
         help="Watch group name to process in --once mode",
     ),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -55,7 +79,7 @@ def watch(
     verbose: bool = typer.Option(
         False,
         "--verbose",
-        "-v",
+        "-V",
         help="Enable verbose logging",
     ),
     dry_run: bool = typer.Option(
@@ -88,7 +112,7 @@ def watch(
 @app.command()
 def setup(
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -112,7 +136,7 @@ def plugin_add(
         help="Skip interactive plugin setup",
     ),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -137,7 +161,7 @@ def plugin_add(
 def plugin_remove(
     package: str = typer.Argument(help="Plugin package name to remove"),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -155,7 +179,7 @@ def plugin_remove(
 def plugin_disable(
     plugin_name: str = typer.Argument(help="Plugin name to disable"),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -172,7 +196,7 @@ def plugin_disable(
 def plugin_enable(
     plugin_name: str = typer.Argument(help="Plugin name to enable"),
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
@@ -188,7 +212,7 @@ def plugin_enable(
 @plugin_app.command("list")
 def plugin_list(
     config: Path = typer.Option(
-        "config.toml",
+        DEFAULT_CONFIG,
         "--config",
         "-c",
         help="Path to TOML config file",
