@@ -10,8 +10,8 @@ from watchfiles import Change, watch
 
 from nomnom.config import Config, WatchGroup
 from nomnom.dispatcher import dispatch
-from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.events import EventType, FileEvent
+from nomnom.executor import EFFECT_TEMPFILE_PREFIX
 from nomnom.plugin import PluginEntry
 from nomnom.stats import WatchStats
 
@@ -51,7 +51,7 @@ def _build_group_index(watch_groups: list[WatchGroup]) -> list[GroupIndexEntry]:
 
 
 def _resolve_group(path: Path, index: list[GroupIndexEntry]) -> WatchGroup | None:
-    resolved = path.resolve(strict=False)
+    resolved = path.absolute()
     for root, group in index:
         if resolved.is_relative_to(root):
             return group
@@ -180,9 +180,7 @@ def run_watcher(
             group for group in cfg.watch_groups if group.name == once_watch_group
         ]
 
-    all_paths = [
-        path.resolve() for group in active_watch_groups for path in group.paths
-    ]
+    all_paths = [path.resolve() for group in active_watch_groups for path in group.paths]
 
     # Filter out non-existent paths
     watch_paths = []
