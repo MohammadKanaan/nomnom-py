@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, MoveFile
+from datetime import datetime
+
+from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, EmitEvent, MoveFile
+from nomnom.events import EventType, FileEvent
 from nomnom.executor import EFFECT_TEMPFILE_PREFIX, EffectSkipped, execute
 
 
@@ -249,6 +252,12 @@ def test_execute_edit_file_preserves_symlink_target(tmp_path: Path) -> None:
     assert path.read_bytes() == b"hello world"
 
 
-def test_execute_unknown_effect_raises_type_error() -> None:
-    with pytest.raises(TypeError):
-        execute("unexpected")
+def test_execute_unknown_effect_raises_type_error(tmp_path: Path) -> None:
+    event = FileEvent(
+        event_type=EventType.CREATED,
+        path=tmp_path / "test.txt",
+        watch_group="test",
+        created_at=datetime.now(),
+    )
+    with pytest.raises(TypeError, match="Unhandled effect type: EmitEvent"):
+        execute(EmitEvent(event=event))
