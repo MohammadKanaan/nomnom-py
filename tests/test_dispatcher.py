@@ -176,6 +176,27 @@ def test_dispatch_processes_plugins_in_order(make_event) -> None:
     assert order == ["first", "second"]
 
 
+def test_dispatch_dry_run_ignores_failing_executor(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    make_event,
+    stub_plugin_cls,
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+
+    def fake_execute(_effect_obj) -> None:
+        raise RuntimeError("executor failed")
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
+    caplog.set_level("ERROR")
+
+    dispatch(event, [("stub", plugin)], dry_run=True, stats=WatchStats())
+
+    assert "Effect CreateFile failed" not in caplog.text
+
+
 def test_dispatch_dry_run_skips_executor(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
