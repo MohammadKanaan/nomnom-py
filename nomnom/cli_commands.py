@@ -395,6 +395,12 @@ def plugin_add_command(
     import subprocess
     import sys
 
+    if not package.startswith("git+"):
+        is_git_scheme = package.startswith("git://")
+        is_git_url = package.startswith(("http://", "https://", "ssh://")) and (package.endswith(".git") or ".git@" in package)
+        if is_git_scheme or is_git_url:
+            package = f"git+{package}"
+
     typer.echo(f"Installing {package}...")
     installed_before = get_installed_plugin_names_fn()
     install_cmd = ["uv", "pip", "install", "--python", sys.executable, "--", package]
