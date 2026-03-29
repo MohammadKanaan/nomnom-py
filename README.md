@@ -4,6 +4,14 @@
 
 ## Install
 
+With `uv`:
+
+```bash
+uv tool install nomnom-py
+```
+
+With `pip`:
+
 ```bash
 pip install nomnom-py
 ```
