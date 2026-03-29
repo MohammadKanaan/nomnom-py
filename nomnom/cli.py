@@ -5,16 +5,16 @@ import typer
 from rich.console import Console
 
 from nomnom import get_version
-from nomnom.cli_commands import (
+from nomnom.commands.plugin import (
     plugin_add_command,
     plugin_disable_command,
     plugin_enable_command,
     plugin_list_command,
     plugin_remove_command,
     plugin_setup_command,
-    setup_command,
-    watch_command,
 )
+from nomnom.commands.setup import setup_command
+from nomnom.commands.watch import watch_command
 from nomnom.create_plugin import create_plugin
 
 DEFAULT_CONFIG = os.environ.get("NOMNOM_CONFIG", "config.toml")
