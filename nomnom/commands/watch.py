@@ -7,7 +7,7 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 
-from nomnom import get_version
+import nomnom
 from nomnom.config import load_config
 from nomnom.discovery import discover_plugins, prioritize_plugins
 from nomnom.watcher import run_watcher
@@ -74,7 +74,7 @@ def watch_command(
     ]
 
     banner = Panel(
-        f"[bold cyan]nomnom[/] v{get_version()}\n"
+        f"[bold cyan]nomnom[/] v{nomnom.get_version()}\n"
         f"[dim]Config: {config}[/]"
         + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",

@@ -4,7 +4,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from nomnom import get_version
+import nomnom
 from nomnom.commands.plugin import (
     plugin_add_command,
     plugin_disable_command,
@@ -35,7 +35,7 @@ plugin_app.command("create")(create_plugin)
 
 def _version_callback(value: bool) -> None:
     if value:
-        console.print(f"nomnom v{get_version()}")
+        console.print(f"nomnom v{nomnom.get_version()}")
         raise typer.Exit()
 
 

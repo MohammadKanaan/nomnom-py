@@ -2,6 +2,7 @@
 name = "nomnom"
 version = "1.0.0"
 license = { text = "MIT" }
+license-files = ["LICENSE.md"]
 description = "Plugin-based CLI file watcher"
 requires-python = ">=3.11"
 readme = "README.md"
@@ -41,6 +42,8 @@ nomnom = "nomnom.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+[tool.hatch.build.targets.wheel]
+packages = ["nomnom"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

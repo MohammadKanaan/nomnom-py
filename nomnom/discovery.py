@@ -5,6 +5,7 @@ import sys
 import tomllib
 from importlib.metadata import entry_points
 from pathlib import Path
+from types import ModuleType
 from typing import cast
 
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 PLUGINS_DIR = Path("plugins")
 ENTRY_POINT_GROUP = "nomnom.plugins"
 
-def _snapshot_canonical_modules(module_path: str) -> dict[str, object]:
+def _snapshot_canonical_modules(module_path: str) -> dict[str, ModuleType]:
     prefix = f"{module_path}."
     return {
         key: value
@@ -26,7 +27,7 @@ def _snapshot_canonical_modules(module_path: str) -> dict[str, object]:
 
 
 def _restore_canonical_modules(
-    module_path: str, snapshot: dict[str, object]
+    module_path: str, snapshot: dict[str, ModuleType]
 ) -> None:
     prefix = f"{module_path}."
     current_keys = [
