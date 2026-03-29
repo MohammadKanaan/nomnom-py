@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Protocol
 
 import typer
 from rich.console import Console
@@ -9,13 +9,10 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from typing import Callable
-
-from nomnom.plugin import Plugin
 
 from nomnom import get_version
-from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-from nomnom.plugin import PluginEntry
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
+from nomnom.plugin import Plugin, PluginEntry
 
 
 def run_setups_for_plugins(
@@ -51,6 +48,19 @@ def run_setups_for_plugins(
         raise typer.Exit(1)
 
 
+class RunWatcherFn(Protocol):
+    def __call__(
+        self,
+        cfg: Config,
+        plugins: list[tuple[str, Plugin]],
+        console: Console,
+        *,
+        dry_run: bool = False,
+        once: bool = False,
+        once_watch_group: str | None = None,
+    ) -> None: ...
+
+
 def watch_command(
     *,
     once_watch_group: str | None,
@@ -59,10 +69,10 @@ def watch_command(
     dry_run: bool,
     once: bool,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
-    prioritize_plugins_fn: Callable[..., Any],
-    run_watcher_fn: Callable[..., Any],
+    load_config_fn: Callable[[Path], Config],
+    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
+    prioritize_plugins_fn: Callable[[list[tuple[str, Plugin]], Config], list[tuple[str, Plugin]]],
+    run_watcher_fn: RunWatcherFn,
 ) -> None:
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
@@ -176,8 +186,8 @@ def setup_command(
     *,
     config: Path,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
+    load_config_fn: Callable[[Path], Config],
+    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
 ) -> None:
     import tomli_w
 
@@ -391,9 +401,9 @@ def plugin_add_command(
     package: str,
     no_setup: bool,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[..., Any],
-    discover_new_plugins_fn: Callable[..., Any],
-    run_setups_for_plugins_fn: Callable[..., Any],
+    get_installed_plugin_names_fn: Callable[[], set[str]],
+    discover_new_plugins_fn: Callable[[set[str]], list[tuple[str, Plugin]]],
+    run_setups_for_plugins_fn: Callable[[list[tuple[str, Plugin]]], None],
 ) -> None:
     import subprocess
     import sys
@@ -448,7 +458,7 @@ def plugin_remove_command(
     *,
     package: str,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[..., Any],
+    get_installed_plugin_names_fn: Callable[[], set[str]],
 ) -> None:
     import subprocess
     import sys
@@ -532,8 +542,8 @@ def plugin_list_command(
     *,
     config_path: Path,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
+    load_config_fn: Callable[[Path], Config],
+    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
 ) -> None:
     discovered = discover_plugins_fn()
     discovered_names = {name for name, _ in discovered}
@@ -577,8 +587,8 @@ def plugin_setup_command(
     *,
     name: str | None,
     all_plugins: bool,
-    discover_plugins_fn: Callable[..., Any],
-    run_setups_for_plugins_fn: Callable[..., Any],
+    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
+    run_setups_for_plugins_fn: Callable[[list[tuple[str, Plugin]]], None],
 ) -> None:
     if name and all_plugins:
         typer.echo("Choose either a plugin name or --all, not both.")
