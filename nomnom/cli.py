@@ -4,6 +4,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from nomnom import get_version
 from nomnom.cli_commands import (
     plugin_add_command,
     plugin_disable_command,
@@ -42,6 +43,26 @@ console = Console()
 plugin_app.command("create")(create_plugin)
 
 
+def _version_callback(value: bool) -> None:
+    if value:
+        console.print(f"nomnom v{get_version()}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool | None = typer.Option(
+        None,
+        "--version",
+        "-v",
+        is_eager=True,
+        help="Show version and exit.",
+        callback=_version_callback,
+    ),
+) -> None:
+    pass
+
+
 @app.command()
 def watch(
     once_watch_group: str | None = typer.Argument(
@@ -58,7 +79,7 @@ def watch(
     verbose: bool = typer.Option(
         False,
         "--verbose",
-        "-v",
+        "-V",
         help="Enable verbose logging",
     ),
     dry_run: bool = typer.Option(

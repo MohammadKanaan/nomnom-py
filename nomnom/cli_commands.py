@@ -5,15 +5,13 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
+from nomnom import get_version
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
-from nomnom.plugin import Plugin
-
 from nomnom.plugin import PluginEntry
 
 
@@ -115,7 +113,7 @@ def watch_command(
     ]
 
     banner = Panel(
-        "[bold cyan]nomnom[/] v0.1.0\n"
+        f"[bold cyan]nomnom[/] v{get_version()}\n"
         f"[dim]Config: {config}[/]"
         + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",
@@ -289,7 +287,15 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
+            while True:
+                raw = Prompt.ask(
+                    "Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)
+                )
+                try:
+                    priority = int(raw)
+                    break
+                except ValueError:
+                    console.print(f"[red]{raw!r} is not a valid integer.[/]")
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
