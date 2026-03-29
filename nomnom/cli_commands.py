@@ -9,6 +9,9 @@ from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from typing import Callable
+
+from nomnom.plugin import Plugin
 
 from nomnom import get_version
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY
@@ -18,8 +21,8 @@ from nomnom.plugin import PluginEntry
 def run_setups_for_plugins(
     plugins: list[PluginEntry],
     *,
-    has_setup_fn: Callable[[Any], bool],
-    run_plugin_setup_fn: Callable[[Any], None],
+    has_setup_fn: Callable[[Plugin], bool],
+    run_plugin_setup_fn: Callable[[Plugin], None],
 ) -> None:
     setup_ran = False
     setup_failed = False
