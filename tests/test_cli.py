@@ -76,12 +76,12 @@ paths = ["./inbox"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
 
-    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", fake_run_watcher)
 
     result = runner.invoke(app, ["watch", "--config", str(config_path), "--dry"])
 
@@ -103,12 +103,12 @@ paths = ["./inbox"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
 
-    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", fake_run_watcher)
 
     result = runner.invoke(app, ["watch", "--config", str(config_path), "--once"])
 
@@ -130,12 +130,12 @@ paths = ["./inbox"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
 
-    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", fake_run_watcher)
 
     result = runner.invoke(
         app,
@@ -165,12 +165,12 @@ paths = ["./archive"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
 
-    monkeypatch.setattr(cli_module, "run_watcher", fake_run_watcher)
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", fake_run_watcher)
 
     result = runner.invoke(app, ["watch", "--config", str(config_path), "--once", "archive"])
 
@@ -191,12 +191,12 @@ paths = ["./inbox"]
     )
 
     runner = CliRunner()
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
 
     def fail_run_watcher(*_args, **_kwargs):
         raise AssertionError("run_watcher should not be called")
 
-    monkeypatch.setattr(cli_module, "run_watcher", fail_run_watcher)
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", fail_run_watcher)
 
     result = runner.invoke(app, ["watch", "--config", str(config_path), "inbox"])
 
@@ -220,12 +220,12 @@ paths = ["./archive"]
     )
 
     runner = CliRunner()
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
 
     def fail_run_watcher(*_args, **_kwargs):
         raise AssertionError("run_watcher should not be called")
 
-    monkeypatch.setattr(cli_module, "run_watcher", fail_run_watcher)
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", fail_run_watcher)
 
     result = runner.invoke(app, ["watch", "--config", str(config_path), "--once", "missing"])
 
@@ -253,10 +253,9 @@ def test_plugin_install_runs_setup_for_new_plugin(
         seen_cmd = cmd
         return SimpleNamespace(returncode=0, stderr="", stdout="")
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
     monkeypatch.setattr(
-        cli_module,
-        "discover_new_plugins",
+        "nomnom.commands.plugin.discover_new_plugins",
         lambda known_names: [("fresh", plugin)],
     )
     monkeypatch.setattr(
@@ -284,10 +283,9 @@ def test_plugin_install_runs_setup_for_new_plugin(
 def test_plugin_install_skips_setup_with_no_setup_flag(monkeypatch) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
     monkeypatch.setattr(
-        cli_module,
-        "discover_new_plugins",
+        "nomnom.commands.plugin.discover_new_plugins",
         lambda known_names: [("fresh", object())],
     )
     monkeypatch.setattr(
@@ -308,10 +306,9 @@ def test_plugin_install_handles_setup_failure(monkeypatch) -> None:
 
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
     monkeypatch.setattr(
-        cli_module,
-        "discover_new_plugins",
+        "nomnom.commands.plugin.discover_new_plugins",
         lambda known_names: [("fresh", PluginWithFailingSetup())],
     )
     monkeypatch.setattr(
@@ -333,10 +330,9 @@ def test_plugin_install_handles_keyboard_interrupt_during_setup(monkeypatch) -> 
 
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
     monkeypatch.setattr(
-        cli_module,
-        "discover_new_plugins",
+        "nomnom.commands.plugin.discover_new_plugins",
         lambda known_names: [("fresh", PluginWithInterruptedSetup())],
     )
     monkeypatch.setattr(
@@ -353,8 +349,8 @@ def test_plugin_install_handles_keyboard_interrupt_during_setup(monkeypatch) -> 
 def test_plugin_install_handles_no_new_plugins(monkeypatch) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
-    monkeypatch.setattr(cli_module, "discover_new_plugins", lambda known_names: [])
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.discover_new_plugins", lambda known_names: [])
     monkeypatch.setattr(
         "subprocess.run",
         lambda *args, **kwargs: SimpleNamespace(returncode=0, stderr="", stdout=""),
@@ -376,10 +372,9 @@ def test_plugin_install_skips_plugin_without_setup(monkeypatch) -> None:
 
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
     monkeypatch.setattr(
-        cli_module,
-        "discover_new_plugins",
+        "nomnom.commands.plugin.discover_new_plugins",
         lambda known_names: [("fresh", PluginWithoutSetup())],
     )
     monkeypatch.setattr(
@@ -397,7 +392,7 @@ def test_plugin_install_skips_plugin_without_setup(monkeypatch) -> None:
 def test_plugin_install_handles_missing_uv(monkeypatch) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "get_installed_plugin_names", lambda: {"existing"})
+    monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
     monkeypatch.setattr(
         "subprocess.run",
         lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError("uv")),
@@ -421,8 +416,7 @@ def test_plugin_setup_runs_named_plugin_setup(monkeypatch) -> None:
     runner = CliRunner()
 
     monkeypatch.setattr(
-        cli_module,
-        "discover_plugins",
+        "nomnom.commands.plugin.discover_plugins",
         lambda: [("fresh", fresh), ("other", object())],
     )
 
@@ -447,8 +441,7 @@ def test_plugin_setup_supports_all_flag(monkeypatch) -> None:
     runner = CliRunner()
 
     monkeypatch.setattr(
-        cli_module,
-        "discover_plugins",
+        "nomnom.commands.plugin.discover_plugins",
         lambda: [("alpha", alpha), ("beta", beta)],
     )
 
@@ -465,8 +458,7 @@ def test_plugin_setup_errors_when_plugin_is_missing(monkeypatch) -> None:
     runner = CliRunner()
 
     monkeypatch.setattr(
-        cli_module,
-        "discover_plugins",
+        "nomnom.commands.plugin.discover_plugins",
         lambda: [("alpha", object())],
     )
 
@@ -479,7 +471,7 @@ def test_plugin_setup_errors_when_plugin_is_missing(monkeypatch) -> None:
 def test_plugin_setup_requires_name_or_all(monkeypatch) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.plugin.discover_plugins", lambda: [])
 
     result = runner.invoke(app, ["plugin", "setup"])
 
@@ -490,7 +482,7 @@ def test_plugin_setup_requires_name_or_all(monkeypatch) -> None:
 def test_plugin_setup_rejects_name_with_all(monkeypatch) -> None:
     runner = CliRunner()
 
-    monkeypatch.setattr(cli_module, "discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.plugin.discover_plugins", lambda: [])
 
     result = runner.invoke(app, ["plugin", "setup", "fresh", "--all"])
 

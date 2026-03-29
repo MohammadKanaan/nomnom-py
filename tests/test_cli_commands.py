@@ -1,4 +1,4 @@
-from nomnom.cli_commands import _warn_missing_config
+from nomnom.commands.plugin import _warn_missing_config
 
 
 def test_warn_missing_config_warning(capsys, tmp_path):
