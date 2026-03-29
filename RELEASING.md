@@ -8,7 +8,7 @@ Publishing.
 1. Create a PyPI account for the maintainer if you do not already have one.
 2. In PyPI, go to `Account settings` -> `Publishing`.
 3. Add a pending trusted publisher with:
-   - PyPI project name: `nomnom`
+   - PyPI project name: `nomnom-py`
    - Owner: `MohammadKanaan`
    - Repository: `nomnom-py`
    - Workflow file: `publish.yml`
@@ -39,7 +39,7 @@ git push origin v1.0.0
 ```
 
 4. Approve the `pypi` environment in GitHub when the `Publish` workflow starts.
-5. Confirm the release at `https://pypi.org/project/nomnom/`.
+5. Confirm the release at `https://pypi.org/project/nomnom-py/`.
 
 ## Notes
 

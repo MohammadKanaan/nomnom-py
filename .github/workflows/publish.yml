@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/nomnom
+      url: https://pypi.org/p/nomnom-py
     permissions:
       id-token: write
 
