@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Protocol
 
 import typer
 from rich.console import Console
@@ -10,18 +10,28 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.logging import RichHandler
 
-from nomnom.config import DEFAULT_PLUGIN_PRIORITY
-
+from nomnom.config import Config, DEFAULT_PLUGIN_PRIORITY
 from nomnom.plugin import Plugin
-
 from nomnom.plugin import PluginEntry
+
+class RunWatcherFn(Protocol):
+    def __call__(
+        self,
+        cfg: Config,
+        plugins: list[PluginEntry],
+        console: Console,
+        *,
+        dry_run: bool = False,
+        once: bool = False,
+        once_watch_group: str | None = None,
+    ) -> None: ...
 
 
 def run_setups_for_plugins(
     plugins: list[PluginEntry],
     *,
-    has_setup_fn: Callable[[Any], bool],
-    run_plugin_setup_fn: Callable[[Any], None],
+    has_setup_fn: Callable[[Plugin], bool],
+    run_plugin_setup_fn: Callable[[Plugin], None],
 ) -> None:
     setup_ran = False
     setup_failed = False
@@ -58,10 +68,10 @@ def watch_command(
     dry_run: bool,
     once: bool,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
-    prioritize_plugins_fn: Callable[..., Any],
-    run_watcher_fn: Callable[..., Any],
+    load_config_fn: Callable[[Path], Config],
+    discover_plugins_fn: Callable[[], list[PluginEntry]],
+    prioritize_plugins_fn: Callable[[list[PluginEntry], Config], list[PluginEntry]],
+    run_watcher_fn: RunWatcherFn,
 ) -> None:
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
@@ -175,8 +185,8 @@ def setup_command(
     *,
     config: Path,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
+    load_config_fn: Callable[[Path], Config],
+    discover_plugins_fn: Callable[[], list[PluginEntry]],
 ) -> None:
     import tomli_w
 
@@ -382,9 +392,9 @@ def plugin_add_command(
     package: str,
     no_setup: bool,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[..., Any],
-    discover_new_plugins_fn: Callable[..., Any],
-    run_setups_for_plugins_fn: Callable[..., Any],
+    get_installed_plugin_names_fn: Callable[[], set[str]],
+    discover_new_plugins_fn: Callable[[set[str]], list[PluginEntry]],
+    run_setups_for_plugins_fn: Callable[[list[PluginEntry]], None],
 ) -> None:
     import subprocess
     import sys
@@ -439,7 +449,7 @@ def plugin_remove_command(
     *,
     package: str,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[..., Any],
+    get_installed_plugin_names_fn: Callable[[], set[str]],
 ) -> None:
     import subprocess
     import sys
@@ -523,8 +533,8 @@ def plugin_list_command(
     *,
     config_path: Path,
     console: Console,
-    load_config_fn: Callable[..., Any],
-    discover_plugins_fn: Callable[..., Any],
+    load_config_fn: Callable[[Path], Config],
+    discover_plugins_fn: Callable[[], list[PluginEntry]],
 ) -> None:
     discovered = discover_plugins_fn()
     discovered_names = {name for name, _ in discovered}
@@ -568,8 +578,8 @@ def plugin_setup_command(
     *,
     name: str | None,
     all_plugins: bool,
-    discover_plugins_fn: Callable[..., Any],
-    run_setups_for_plugins_fn: Callable[..., Any],
+    discover_plugins_fn: Callable[[], list[PluginEntry]],
+    run_setups_for_plugins_fn: Callable[[list[PluginEntry]], None],
 ) -> None:
     if name and all_plugins:
         typer.echo("Choose either a plugin name or --all, not both.")
@@ -584,7 +594,7 @@ def plugin_setup_command(
         run_setups_for_plugins_fn(discovered)
         return
 
-    selected_plugins = [(plugin_name, p) for plugin_name, p in discovered if plugin_name == name]
+    selected_plugins = [PluginEntry(plugin_name, p) for plugin_name, p in discovered if plugin_name == name]
     if not selected_plugins:
         typer.echo(f"Plugin '{name}' was not found.")
         raise typer.Exit(1)
