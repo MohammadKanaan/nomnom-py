@@ -2,6 +2,7 @@ import logging
 import os
 import shutil
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 
 from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, Effect, MoveFile
@@ -45,10 +46,8 @@ def _write_bytes_atomically(
         os.chmod(tmp_name, mode if mode is not None else _default_file_mode())
         os.replace(tmp_name, write_path)
     except BaseException:
-        try:
+        with suppress(FileNotFoundError):
             os.unlink(tmp_name)
-        except FileNotFoundError:
-            pass
         raise
 
 
@@ -79,7 +78,7 @@ def execute(effect: Effect) -> None:
                 path.unlink()
             except FileNotFoundError:
                 logger.warning(f"Delete skipped; file missing: {path}")
-                raise EffectSkipped(f"Delete skipped; file missing: {path}")
+                raise EffectSkipped(f"Delete skipped; file missing: {path}") from None
             logger.info(f"Deleting {path}")
 
         case CreateFile(path=path, content=content):

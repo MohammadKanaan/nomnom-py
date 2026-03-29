@@ -1,13 +1,12 @@
 import os
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from datetime import datetime
-
 from nomnom.effects import CreateFile, DeleteFile, EditAction, EditFile, EmitEvent, MoveFile
 from nomnom.events import EventType, FileEvent
-from nomnom.executor import EFFECT_TEMPFILE_PREFIX, EffectSkipped, execute
+from nomnom.executor import EffectSkipped, execute
 
 
 def test_execute_move_file(tmp_path: Path) -> None:

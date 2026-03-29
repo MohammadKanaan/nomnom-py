@@ -362,7 +362,13 @@ def _update_plugin_in_config(config_path: Path, plugin_name: str, enabled: bool)
             break
 
     if not updated:
-        plugins.append({"name": plugin_name, "priority": DEFAULT_PLUGIN_PRIORITY, "enabled": enabled})
+        plugins.append(
+            {
+                "name": plugin_name,
+                "priority": DEFAULT_PLUGIN_PRIORITY,
+                "enabled": enabled,
+            }
+        )
 
     with open(config_path, "wb") as f:
         tomli_w.dump(data, f)

@@ -7,7 +7,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import cast
 
-from nomnom.config import Config, DEFAULT_PLUGIN_PRIORITY
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
 from nomnom.plugin import Plugin, PluginEntry
 from nomnom.validation import validate_module_path_containment
 
