@@ -12,7 +12,7 @@ def test_dispatch_calls_matching_plugin(make_event, stub_plugin_cls) -> None:
     event = make_event()
     plugin = stub_plugin_cls(matches_result=True, effects=[])
 
-    dispatch(event, [("stub", plugin)])
+    dispatch(event, [("stub", plugin)], stats=WatchStats())
 
     assert plugin.matched_events == [event]
     assert plugin.handled_events == [event]
@@ -22,7 +22,7 @@ def test_dispatch_skips_non_matching_plugin(make_event, stub_plugin_cls) -> None
     event = make_event()
     plugin = stub_plugin_cls(matches_result=False, effects=[])
 
-    dispatch(event, [("stub", plugin)])
+    dispatch(event, [("stub", plugin)], stats=WatchStats())
 
     assert plugin.matched_events == [event]
     assert plugin.handled_events == []
@@ -41,7 +41,7 @@ def test_dispatch_executes_effects(
 
     monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
 
-    dispatch(event, [("stub", plugin)])
+    dispatch(event, [("stub", plugin)], stats=WatchStats())
 
     assert executed == [effect]
 
@@ -60,7 +60,7 @@ def test_dispatch_recurses_on_emit_event(
 
     monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
 
-    dispatch(first, [("stub", plugin)], max_depth=3)
+    dispatch(first, [("stub", plugin)], max_depth=3, stats=WatchStats())
 
     assert plugin.handled_events == [first, second, second]
     assert calls == []
@@ -69,13 +69,18 @@ def test_dispatch_recurses_on_emit_event(
 def test_dispatch_respects_max_depth(
     caplog: pytest.LogCaptureFixture, make_event, stub_plugin_cls
 ) -> None:
+    """A plugin that always emits should be capped at max_depth generations."""
     event = make_event()
-    plugin = stub_plugin_cls(matches_result=True, effects=[])
+    inner = make_event(event_type=EventType.MODIFIED, path=Path("/tmp/inner.txt"))
+    plugin = stub_plugin_cls(matches_result=True, effects=[EmitEvent(event=inner)])
 
     caplog.set_level("WARNING")
-    dispatch(event, [("stub", plugin)], depth=2, max_depth=2)
+    dispatch(event, [("stub", plugin)], max_depth=2, stats=WatchStats())
 
-    assert plugin.matched_events == []
+    # depth 0: event processed, emits inner
+    # depth 1: inner processed, emits inner again
+    # depth 2: max_depth reached, dropped
+    assert plugin.handled_events == [event, inner]
     assert "Max event depth (2) reached" in caplog.text
 
 
@@ -94,7 +99,7 @@ def test_dispatch_isolates_matches_crash(
     healthy = stub_plugin_cls(matches_result=True, effects=[])
     caplog.set_level("ERROR")
 
-    dispatch(event, [("crashy", CrashingMatchesPlugin()), ("healthy", healthy)])
+    dispatch(event, [("crashy", CrashingMatchesPlugin()), ("healthy", healthy)], stats=WatchStats())
 
     assert healthy.handled_events == [event]
     assert "crashed in matches()" in caplog.text
@@ -115,7 +120,7 @@ def test_dispatch_isolates_handle_crash(
     healthy = stub_plugin_cls(matches_result=True, effects=[])
     caplog.set_level("ERROR")
 
-    dispatch(event, [("crashy", CrashingHandlePlugin()), ("healthy", healthy)])
+    dispatch(event, [("crashy", CrashingHandlePlugin()), ("healthy", healthy)], stats=WatchStats())
 
     assert healthy.handled_events == [event]
     assert "crashed in handle()" in caplog.text
@@ -141,7 +146,7 @@ def test_dispatch_isolates_effect_crash(
     monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
     caplog.set_level("ERROR")
 
-    dispatch(event, [("stub", plugin)])
+    dispatch(event, [("stub", plugin)], stats=WatchStats())
 
     assert executed == [good_effect]
     assert "Effect CreateFile failed" in caplog.text
@@ -165,9 +170,31 @@ def test_dispatch_processes_plugins_in_order(make_event) -> None:
     dispatch(
         event,
         [("first", OrderedPlugin("first")), ("second", OrderedPlugin("second"))],
+        stats=WatchStats(),
     )
 
     assert order == ["first", "second"]
+
+
+def test_dispatch_dry_run_ignores_failing_executor(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    make_event,
+    stub_plugin_cls,
+) -> None:
+    event = make_event()
+    effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
+    plugin = stub_plugin_cls(matches_result=True, effects=[effect])
+
+    def fake_execute(_effect_obj) -> None:
+        raise RuntimeError("executor failed")
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
+    caplog.set_level("ERROR")
+
+    dispatch(event, [("stub", plugin)], dry_run=True, stats=WatchStats())
+
+    assert "Effect CreateFile failed" not in caplog.text
 
 
 def test_dispatch_dry_run_skips_executor(
@@ -188,7 +215,7 @@ def test_dispatch_dry_run_skips_executor(
     monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
     caplog.set_level("INFO")
 
-    dispatch(event, [("stub", plugin)], dry_run=True)
+    dispatch(event, [("stub", plugin)], dry_run=True, stats=WatchStats())
 
     assert called is False
     assert "[DRY RUN]" in caplog.text
@@ -211,7 +238,7 @@ def test_dispatch_dry_run_recurses_emit_event(
 
     monkeypatch.setattr("nomnom.dispatcher.executor.execute", fake_execute)
 
-    dispatch(first, [("stub", plugin)], max_depth=3, dry_run=True)
+    dispatch(first, [("stub", plugin)], max_depth=3, dry_run=True, stats=WatchStats())
 
     assert plugin.handled_events == [first, second, second]
     assert called is False
@@ -250,12 +277,17 @@ def test_dispatch_records_stats_for_emitted_events(
 def test_dispatch_does_not_count_noop_effects_as_applied(
     monkeypatch: pytest.MonkeyPatch, make_event, stub_plugin_cls
 ) -> None:
+    from nomnom.executor import EffectSkipped
+
     event = make_event()
     effect = CreateFile(path=Path("/tmp/out.txt"), content=b"hello")
     plugin = stub_plugin_cls(matches_result=True, effects=[effect])
     stats = WatchStats()
 
-    monkeypatch.setattr("nomnom.dispatcher.executor.execute", lambda _effect: False)
+    def raise_effect_skipped(_effect):
+        raise EffectSkipped()
+
+    monkeypatch.setattr("nomnom.dispatcher.executor.execute", raise_effect_skipped)
 
     dispatch(event, [("stub", plugin)], stats=stats)
 

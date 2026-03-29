@@ -5,18 +5,18 @@ from typing import Protocol
 
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
-from rich.logging import RichHandler
 
+from nomnom import get_version
 from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
-
-from nomnom.plugin import Plugin
+from nomnom.plugin import Plugin, PluginEntry
 
 
 def run_setups_for_plugins(
-    plugins: list[tuple[str, Plugin]],
+    plugins: list[PluginEntry],
     *,
     has_setup_fn: Callable[[Plugin], bool],
     run_plugin_setup_fn: Callable[[Plugin], None],
@@ -120,13 +120,13 @@ def watch_command(
 
     config_plugin_status = {p.name: p.enabled for p in cfg.plugins}
     plugins = [
-        (name, plugin)
-        for name, plugin in prioritized_plugins
-        if config_plugin_status.get(name, True)
+        entry
+        for entry in prioritized_plugins
+        if config_plugin_status.get(entry.name, True)
     ]
 
     banner = Panel(
-        "[bold cyan]nomnom[/] v0.1.0\n"
+        f"[bold cyan]nomnom[/] v{get_version()}\n"
         f"[dim]Config: {config}[/]"
         + ("\n[bold yellow][DRY RUN][/bold yellow]" if dry_run else ""),
         border_style="cyan",
@@ -300,7 +300,15 @@ def setup_command(
                     console.print(f"  • {plugin_name}")
 
             name = Prompt.ask("Plugin name")
-            priority = int(Prompt.ask("Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)))
+            while True:
+                raw = Prompt.ask(
+                    "Priority (lower = higher priority)", default=str(DEFAULT_PLUGIN_PRIORITY)
+                )
+                try:
+                    priority = int(raw)
+                    break
+                except ValueError:
+                    console.print(f"[red]{raw!r} is not a valid integer.[/]")
             plugins.append({"name": name, "priority": priority, "enabled": True})
 
             if not Confirm.ask("Configure another plugin?", default=False):
