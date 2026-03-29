@@ -1,7 +1,5 @@
 import logging
-from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol
 
 import typer
 from rich.console import Console
@@ -11,26 +9,30 @@ from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
 from nomnom import get_version
-from nomnom.config import DEFAULT_PLUGIN_PRIORITY, Config
-from nomnom.plugin import Plugin, PluginEntry
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, load_config
+from nomnom.discovery import (
+    discover_new_plugins,
+    discover_plugins,
+    get_installed_plugin_names,
+    prioritize_plugins,
+)
+from nomnom.plugin import PluginEntry, has_setup, run_plugin_setup
+from nomnom.watcher import run_watcher
 
 
 def run_setups_for_plugins(
     plugins: list[PluginEntry],
-    *,
-    has_setup_fn: Callable[[Plugin], bool],
-    run_plugin_setup_fn: Callable[[Plugin], None],
 ) -> None:
     setup_ran = False
     setup_failed = False
     for plugin_name, plugin in plugins:
-        if not has_setup_fn(plugin):
+        if not has_setup(plugin):
             typer.echo(f"Plugin '{plugin_name}' has no setup() method; skipping.")
             continue
 
         typer.echo(f"Running setup() for plugin '{plugin_name}'...")
         try:
-            run_plugin_setup_fn(plugin)
+            run_plugin_setup(plugin)
             setup_ran = True
             typer.echo(f"Setup completed for plugin '{plugin_name}'.")
         except KeyboardInterrupt:
@@ -48,19 +50,6 @@ def run_setups_for_plugins(
         raise typer.Exit(1)
 
 
-class RunWatcherFn(Protocol):
-    def __call__(
-        self,
-        cfg: Config,
-        plugins: list[tuple[str, Plugin]],
-        console: Console,
-        *,
-        dry_run: bool = False,
-        once: bool = False,
-        once_watch_group: str | None = None,
-    ) -> None: ...
-
-
 def watch_command(
     *,
     once_watch_group: str | None,
@@ -69,10 +58,6 @@ def watch_command(
     dry_run: bool,
     once: bool,
     console: Console,
-    load_config_fn: Callable[[Path], Config],
-    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
-    prioritize_plugins_fn: Callable[[list[tuple[str, Plugin]], Config], list[tuple[str, Plugin]]],
-    run_watcher_fn: RunWatcherFn,
 ) -> None:
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
@@ -100,7 +85,7 @@ def watch_command(
         )
         raise typer.Exit(code=1)
 
-    cfg = load_config_fn(config)
+    cfg = load_config(config)
     if once_watch_group and not once:
         console.print("[red]Watch group argument is only supported with --once.[/]")
         raise typer.Exit(code=1)
@@ -115,8 +100,8 @@ def watch_command(
             )
             raise typer.Exit(code=1)
 
-    raw_plugins = discover_plugins_fn()
-    prioritized_plugins = prioritize_plugins_fn(raw_plugins, cfg)
+    raw_plugins = discover_plugins()
+    prioritized_plugins = prioritize_plugins(raw_plugins, cfg)
 
     config_plugin_status = {p.name: p.enabled for p in cfg.plugins}
     plugins = [
@@ -172,7 +157,7 @@ def watch_command(
     else:
         console.print("\n[dim]Watching for changes... (Ctrl+C to stop)[/]\n")
 
-    run_watcher_fn(
+    run_watcher(
         cfg,
         plugins,
         console,
@@ -186,8 +171,6 @@ def setup_command(
     *,
     config: Path,
     console: Console,
-    load_config_fn: Callable[[Path], Config],
-    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
 ) -> None:
     import tomli_w
 
@@ -206,7 +189,7 @@ def setup_command(
             return
 
         try:
-            cfg = load_config_fn(config)
+            cfg = load_config(config)
             existing_watch_groups = [
                 {
                     "name": wg.name,
@@ -271,7 +254,7 @@ def setup_command(
         return
 
     console.print("\n[bold]Plugins Configuration[/]")
-    discovered = discover_plugins_fn()
+    discovered = discover_plugins()
 
     if discovered:
         console.print(f"\n[dim]Discovered {len(discovered)} plugin(s):[/]")
@@ -401,15 +384,12 @@ def plugin_add_command(
     package: str,
     no_setup: bool,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[[], set[str]],
-    discover_new_plugins_fn: Callable[[set[str]], list[tuple[str, Plugin]]],
-    run_setups_for_plugins_fn: Callable[[list[tuple[str, Plugin]]], None],
 ) -> None:
     import subprocess
     import sys
 
     typer.echo(f"Installing {package}...")
-    installed_before = get_installed_plugin_names_fn()
+    installed_before = get_installed_plugin_names()
     install_cmd = ["uv", "pip", "install", "--python", sys.executable, "--", package]
 
     try:
@@ -436,7 +416,7 @@ def plugin_add_command(
         typer.echo("Run 'nomnom watch' to use it.")
         return
 
-    new_plugins = discover_new_plugins_fn(installed_before)
+    new_plugins = discover_new_plugins(installed_before)
 
     if not config_path.exists():
         _warn_missing_config(config_path)
@@ -450,7 +430,7 @@ def plugin_add_command(
         typer.echo("Run 'nomnom watch' to use it.")
         return
 
-    run_setups_for_plugins_fn(new_plugins)
+    run_setups_for_plugins(new_plugins)
     typer.echo("Run 'nomnom watch' to use it.")
 
 
@@ -458,13 +438,12 @@ def plugin_remove_command(
     *,
     package: str,
     config_path: Path,
-    get_installed_plugin_names_fn: Callable[[], set[str]],
 ) -> None:
     import subprocess
     import sys
 
     typer.echo(f"Removing {package}...")
-    installed_before = get_installed_plugin_names_fn()
+    installed_before = get_installed_plugin_names()
     uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, package]
 
     try:
@@ -486,7 +465,7 @@ def plugin_remove_command(
 
     typer.echo("Plugin uninstalled successfully.")
 
-    installed_after = get_installed_plugin_names_fn()
+    installed_after = get_installed_plugin_names()
     removed_plugins = installed_before - installed_after
 
     if not config_path.exists():
@@ -542,16 +521,14 @@ def plugin_list_command(
     *,
     config_path: Path,
     console: Console,
-    load_config_fn: Callable[[Path], Config],
-    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
 ) -> None:
-    discovered = discover_plugins_fn()
+    discovered = discover_plugins()
     discovered_names = {name for name, _ in discovered}
 
     config_plugins = {}
     if config_path.exists():
         try:
-            cfg = load_config_fn(config_path)
+            cfg = load_config(config_path)
             for p in cfg.plugins:
                 config_plugins[p.name] = p
         except Exception as e:
@@ -587,8 +564,6 @@ def plugin_setup_command(
     *,
     name: str | None,
     all_plugins: bool,
-    discover_plugins_fn: Callable[[], list[tuple[str, Plugin]]],
-    run_setups_for_plugins_fn: Callable[[list[tuple[str, Plugin]]], None],
 ) -> None:
     if name and all_plugins:
         typer.echo("Choose either a plugin name or --all, not both.")
@@ -598,14 +573,16 @@ def plugin_setup_command(
         typer.echo("Provide a plugin name or pass --all.")
         raise typer.Exit(1)
 
-    discovered = discover_plugins_fn()
+    discovered = discover_plugins()
     if all_plugins:
-        run_setups_for_plugins_fn(discovered)
+        run_setups_for_plugins(discovered)
         return
 
-    selected_plugins = [(plugin_name, p) for plugin_name, p in discovered if plugin_name == name]
+    selected_plugins = [
+        PluginEntry(plugin_name, p) for plugin_name, p in discovered if plugin_name == name
+    ]
     if not selected_plugins:
         typer.echo(f"Plugin '{name}' was not found.")
         raise typer.Exit(1)
 
-    run_setups_for_plugins_fn(selected_plugins)
+    run_setups_for_plugins(selected_plugins)

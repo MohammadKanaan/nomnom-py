@@ -12,20 +12,10 @@ from nomnom.cli_commands import (
     plugin_list_command,
     plugin_remove_command,
     plugin_setup_command,
-    run_setups_for_plugins,
     setup_command,
     watch_command,
 )
-from nomnom.config import load_config
 from nomnom.create_plugin import create_plugin
-from nomnom.discovery import (
-    discover_new_plugins,
-    discover_plugins,
-    get_installed_plugin_names,
-    prioritize_plugins,
-)
-from nomnom.plugin import has_setup, run_plugin_setup
-from nomnom.watcher import run_watcher
 
 DEFAULT_CONFIG = os.environ.get("NOMNOM_CONFIG", "config.toml")
 
@@ -102,10 +92,6 @@ def watch(
         dry_run=dry_run,
         once=once,
         console=console,
-        load_config_fn=load_config,
-        discover_plugins_fn=discover_plugins,
-        prioritize_plugins_fn=prioritize_plugins,
-        run_watcher_fn=run_watcher,
     )
 
 
@@ -122,8 +108,6 @@ def setup(
     setup_command(
         config=config,
         console=console,
-        load_config_fn=load_config,
-        discover_plugins_fn=discover_plugins,
     )
 
 
@@ -147,13 +131,6 @@ def plugin_add(
         package=package,
         no_setup=no_setup,
         config_path=config,
-        get_installed_plugin_names_fn=get_installed_plugin_names,
-        discover_new_plugins_fn=discover_new_plugins,
-        run_setups_for_plugins_fn=lambda plugins: run_setups_for_plugins(
-            plugins,
-            has_setup_fn=has_setup,
-            run_plugin_setup_fn=run_plugin_setup,
-        ),
     )
 
 
@@ -171,7 +148,6 @@ def plugin_remove(
     plugin_remove_command(
         package=package,
         config_path=config,
-        get_installed_plugin_names_fn=get_installed_plugin_names,
     )
 
 
@@ -222,8 +198,6 @@ def plugin_list(
     plugin_list_command(
         config_path=config,
         console=console,
-        load_config_fn=load_config,
-        discover_plugins_fn=discover_plugins,
     )
 
 
@@ -243,12 +217,6 @@ def plugin_setup(
     plugin_setup_command(
         name=name,
         all_plugins=all_plugins,
-        discover_plugins_fn=discover_plugins,
-        run_setups_for_plugins_fn=lambda plugins: run_setups_for_plugins(
-            plugins,
-            has_setup_fn=has_setup,
-            run_plugin_setup_fn=run_plugin_setup,
-        ),
     )
 
 
