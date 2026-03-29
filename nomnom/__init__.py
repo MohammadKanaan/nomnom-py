@@ -7,7 +7,7 @@ from nomnom.plugin import Plugin, SetupPlugin
 
 def get_version() -> str:
     try:
-        return version("nomnom")
+        return version("nomnom-py")
     except PackageNotFoundError:
         return "dev"
 

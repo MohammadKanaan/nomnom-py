@@ -289,7 +289,7 @@ wheels = [
 ]
 
 [[package]]
-name = "nomnom"
+name = "nomnom-py"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [

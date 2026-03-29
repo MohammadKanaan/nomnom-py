@@ -5,7 +5,7 @@
 ## Install
 
 ```bash
-pip install nomnom
+pip install nomnom-py
 ```
 
 ## Quick Start

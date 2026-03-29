@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 from typer.testing import CliRunner
 
+import nomnom
 import nomnom.cli as cli_module
 from nomnom.cli import app
 
@@ -23,6 +24,19 @@ def test_version_short_flag(monkeypatch) -> None:
     result = runner.invoke(app, ["-v"])
     assert result.exit_code == 0
     assert "nomnom v1.0.0" in result.output
+
+
+def test_get_version_uses_distribution_name(monkeypatch) -> None:
+    requested_package: list[str] = []
+
+    def fake_version(package_name: str) -> str:
+        requested_package.append(package_name)
+        return "1.0.0"
+
+    monkeypatch.setattr("nomnom.version", fake_version)
+
+    assert nomnom.get_version() == "1.0.0"
+    assert requested_package == ["nomnom-py"]
 
 
 def test_pyproject_metadata_is_public_ready() -> None:

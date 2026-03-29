@@ -1,5 +1,5 @@
 [project]
-name = "nomnom"
+name = "nomnom-py"
 version = "1.0.0"
 license = { text = "MIT" }
 license-files = ["LICENSE.md"]
@@ -42,6 +42,19 @@ nomnom = "nomnom.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build]
+exclude = [
+    "/.conductor",
+    "/.jules",
+    "/.pytest_cache",
+    "/.ruff_cache",
+    "/.uv-cache",
+    "/.venv",
+    "/config.toml",
+    "/dist",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["nomnom"]
 
