@@ -8,6 +8,22 @@ import nomnom.cli as cli_module
 from nomnom.cli import app
 
 
+def test_version_flag(monkeypatch) -> None:
+    runner = CliRunner()
+    monkeypatch.setattr("nomnom.get_version", lambda: "1.0.0")
+    result = runner.invoke(app, ["--version"])
+    assert result.exit_code == 0
+    assert "nomnom v1.0.0" in result.output
+
+
+def test_version_short_flag(monkeypatch) -> None:
+    runner = CliRunner()
+    monkeypatch.setattr("nomnom.get_version", lambda: "1.0.0")
+    result = runner.invoke(app, ["-v"])
+    assert result.exit_code == 0
+    assert "nomnom v1.0.0" in result.output
+
+
 def test_nomnom_config_env_var_is_used_by_watch_command(monkeypatch) -> None:
     monkeypatch.setenv("NOMNOM_CONFIG", "custom.toml")
     importlib.reload(cli_module)
