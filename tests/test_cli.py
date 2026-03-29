@@ -1,5 +1,6 @@
 import importlib
 import sys
+import tomllib
 from types import SimpleNamespace
 
 from typer.testing import CliRunner
@@ -22,6 +23,21 @@ def test_version_short_flag(monkeypatch) -> None:
     result = runner.invoke(app, ["-v"])
     assert result.exit_code == 0
     assert "nomnom v1.0.0" in result.output
+
+
+def test_pyproject_metadata_is_public_ready() -> None:
+    with open("pyproject.toml", "rb") as f:
+        data = tomllib.load(f)
+
+    project = data["project"]
+    author = project["authors"][0]
+    urls = project["urls"]
+    dependencies = project["dependencies"]
+
+    assert author["name"] != "Your Name"
+    assert author.get("email") != "you@example.com"
+    assert "Issues" in urls
+    assert any(dependency.startswith("rich") for dependency in dependencies)
 
 
 def test_nomnom_config_env_var_is_used_by_watch_command(monkeypatch) -> None:

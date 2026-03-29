@@ -1,9 +1,22 @@
 [project]
 name = "nomnom"
 version = "1.0.0"
+license = { text = "MIT" }
 description = "Plugin-based CLI file watcher"
 requires-python = ">=3.11"
+readme = "README.md"
+authors = [{ name = "Mohammad Kanaan", email = "mohammadkanaan.me@gmail.com" }]
+keywords = ["cli", "file-watcher", "plugins"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+]
 dependencies = [
+    "rich>=13.0",
     "typer>=0.9",
     "watchfiles>=0.21",
     "tomli-w>=1.0",
@@ -16,6 +29,11 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.10",
 ]
+
+[project.urls]
+Homepage = "https://github.com/MohammadKanaan/nomnom-py"
+Repository = "https://github.com/MohammadKanaan/nomnom-py"
+Issues = "https://github.com/MohammadKanaan/nomnom-py/issues"
 
 [project.scripts]
 nomnom = "nomnom.cli:app"

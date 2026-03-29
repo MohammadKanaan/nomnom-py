@@ -1,5 +1,5 @@
-from pathlib import Path
 from nomnom.cli_commands import _warn_missing_config
+
 
 def test_warn_missing_config_warning(capsys, tmp_path):
     config_path = tmp_path / "missing.toml"

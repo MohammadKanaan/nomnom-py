@@ -1,4 +1,4 @@
-from typing import Protocol, runtime_checkable, NamedTuple
+from typing import NamedTuple, Protocol, runtime_checkable
 
 from nomnom.effects import Effect
 from nomnom.events import FileEvent
