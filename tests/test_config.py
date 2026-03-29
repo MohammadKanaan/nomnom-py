@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from nomnom.config import ConfigError, DEFAULT_PLUGIN_PRIORITY, load_config
+from nomnom.config import DEFAULT_PLUGIN_PRIORITY, ConfigError, load_config
 
 
 def test_load_config_supports_plugins_key(tmp_path: Path) -> None:
@@ -240,6 +240,32 @@ paths = ["./inbox/sub"]
     assert f"child path: {tmp_path / 'inbox' / 'sub'}" in caplog.text
     assert "parent" in caplog.text
     assert "child" in caplog.text
+
+
+def test_load_config_overlap_warning_child_first(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "child"
+paths = ["./inbox/sub"]
+
+[[watch]]
+name = "parent"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    with caplog.at_level(logging.WARNING, logger="nomnom.config"):
+        load_config(config_path)
+
+    assert "Overlapping watch paths" in caplog.text
+    assert f"Common path: {tmp_path / 'inbox'}" in caplog.text
+    assert f"parent path: {tmp_path / 'inbox'}" in caplog.text
+    assert f"child path: {tmp_path / 'inbox' / 'sub'}" in caplog.text
 
 
 def test_load_config_overlap_warning_with_dotdot_paths(
