@@ -30,7 +30,7 @@ Use the built-in scaffold to create a local plugin package:
 uv run nomnom plugin create my-plugin
 ```
 
-Local plugins live under `plugins/`. The repository currently includes `nomnom-plugin-rules` as a reference implementation.
+Local plugins live under `plugins/`. The built-in `rules` plugin is implemented in `nomnom.builtin.rules`.
 
 ## Pull Requests
 

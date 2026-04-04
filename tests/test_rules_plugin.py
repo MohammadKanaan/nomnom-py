@@ -9,11 +9,9 @@ from nomnom.events import EventType, FileEvent
 
 @pytest.fixture
 def rules_module(monkeypatch: pytest.MonkeyPatch):
-    plugin_root = Path(__file__).resolve().parent.parent / "plugins" / "nomnom-plugin-rules"
-    monkeypatch.syspath_prepend(str(plugin_root))
     import importlib
 
-    return importlib.import_module("nomnom_plugin_rules")
+    return importlib.import_module("nomnom.builtin.rules")
 
 
 def make_event(
@@ -32,7 +30,6 @@ def make_event(
 
 def test_loads_rules_and_logs_notice(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     rules_module,
 ) -> None:
@@ -49,10 +46,9 @@ destination = "./archive/"
         + "\n"
     )
 
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
     caplog.set_level("INFO")
 
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
 
     assert len(plugin._rules) == 1
     assert "Loaded 1 rule(s)" in caplog.text
@@ -61,15 +57,13 @@ destination = "./archive/"
 
 def test_missing_rules_file_is_graceful(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     rules_module,
 ) -> None:
     missing = tmp_path / "rules.toml"
-    monkeypatch.setattr(rules_module, "RULES_PATH", missing)
     caplog.set_level("INFO")
 
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=missing)
 
     assert plugin._rules == []
     assert "Rules file not found" in caplog.text
@@ -77,7 +71,6 @@ def test_missing_rules_file_is_graceful(
 
 def test_invalid_rules_are_skipped_with_warning(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     rules_module,
 ) -> None:
@@ -111,10 +104,9 @@ action = "move"
         + "\n"
     )
 
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
     caplog.set_level("WARNING")
 
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
 
     assert len(plugin._rules) == 1
     assert "Skipping invalid rule" in caplog.text
@@ -122,7 +114,6 @@ action = "move"
 
 def test_matches_on_event_filename_and_optional_watch_group(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     rules_module,
 ) -> None:
     rules_toml = tmp_path / "rules.toml"
@@ -139,8 +130,7 @@ content = "DRAFT\\n"
         + "\n"
     )
 
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
 
     assert plugin.matches(make_event(path="/tmp/note.md", watch_group="inbox"))
     assert not plugin.matches(make_event(path="/tmp/note.md", watch_group="other"))
@@ -152,7 +142,6 @@ content = "DRAFT\\n"
 
 def test_rule_without_watch_group_applies_to_all_groups(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     rules_module,
 ) -> None:
     rules_toml = tmp_path / "rules.toml"
@@ -167,9 +156,7 @@ content = "\\n# tagged"
 """.strip()
         + "\n"
     )
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
-
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
 
     assert plugin.matches(make_event(path="/tmp/a.md", watch_group="one"))
     assert plugin.matches(make_event(path="/tmp/b.md", watch_group="two"))
@@ -177,7 +164,6 @@ content = "\\n# tagged"
 
 def test_all_actions_build_expected_effects(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     rules_module,
 ) -> None:
     rules_toml = tmp_path / "rules.toml"
@@ -212,8 +198,7 @@ destination = "./archive/"
 """.strip()
         + "\n"
     )
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
 
     prepend_effects = plugin.handle(make_event(path="/tmp/prepend.txt"))
     append_effects = plugin.handle(make_event(path="/tmp/append.txt"))
@@ -234,7 +219,6 @@ destination = "./archive/"
 
 def test_move_to_explicit_file_path_uses_path_as_is(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     rules_module,
 ) -> None:
     rules_toml = tmp_path / "rules.toml"
@@ -249,9 +233,7 @@ destination = "./archive/renamed.txt"
 """.strip()
         + "\n"
     )
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
-
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
     effects = plugin.handle(make_event(path="/tmp/input.txt"))
 
     assert effects == [
@@ -261,7 +243,6 @@ destination = "./archive/renamed.txt"
 
 def test_move_to_existing_directory_preserves_filename(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     rules_module,
 ) -> None:
     destination_dir = tmp_path / "archive"
@@ -278,9 +259,7 @@ destination = "{destination_dir}"
 """.strip()
         + "\n"
     )
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
-
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
     effects = plugin.handle(make_event(path="/tmp/file.dat"))
 
     assert effects == [
@@ -290,7 +269,6 @@ destination = "{destination_dir}"
 
 def test_multiple_matching_rules_run_in_file_order(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     rules_module,
 ) -> None:
     rules_toml = tmp_path / "rules.toml"
@@ -312,9 +290,7 @@ content = "B"
 """.strip()
         + "\n"
     )
-    monkeypatch.setattr(rules_module, "RULES_PATH", rules_toml)
-
-    plugin = rules_module.RulesPlugin()
+    plugin = rules_module.RulesPlugin(rules_path=rules_toml)
     effects = plugin.handle(make_event(path="/tmp/file.txt"))
 
     assert effects == [

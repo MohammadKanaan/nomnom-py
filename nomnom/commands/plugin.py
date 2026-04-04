@@ -1,4 +1,5 @@
 from pathlib import Path
+from subprocess import CompletedProcess
 
 import typer
 from rich.console import Console
@@ -105,27 +106,53 @@ def _remove_plugin_from_config(config_path: Path, plugin_name: str) -> bool:
     return False
 
 
+def _run_package_command(*, action: str, package: str) -> CompletedProcess[str]:
+    import subprocess
+    import sys
+
+    if action == "install":
+        commands = [
+            ["uv", "pip", "install", "--python", sys.executable, "--", package],
+            [sys.executable, "-m", "pip", "install", package],
+        ]
+    elif action == "uninstall":
+        commands = [
+            ["uv", "pip", "uninstall", "--python", sys.executable, package],
+            [sys.executable, "-m", "pip", "uninstall", "-y", package],
+        ]
+    else:
+        raise ValueError(f"Unsupported package action: {action}")
+
+    last_error: OSError | None = None
+    for command in commands:
+        try:
+            return subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+            )
+        except OSError as e:
+            last_error = e
+
+    if last_error is not None:
+        raise last_error
+
+    raise RuntimeError("No package command was attempted")
+
+
 def plugin_add_command(
     *,
     package: str,
     no_setup: bool,
     config_path: Path,
 ) -> None:
-    import subprocess
-    import sys
-
     typer.echo(f"Installing {package}...")
     installed_before = get_installed_plugin_names()
-    install_cmd = ["uv", "pip", "install", "--python", sys.executable, "--", package]
 
     try:
-        result = subprocess.run(
-            install_cmd,
-            capture_output=True,
-            text=True,
-        )
+        result = _run_package_command(action="install", package=package)
     except OSError as e:
-        typer.echo(f"Installation failed: could not execute '{install_cmd[0]}': {e}")
+        typer.echo(f"Installation failed: could not execute a package installer: {e}")
         raise typer.Exit(1) from e
 
     if result.returncode != 0:
@@ -165,21 +192,13 @@ def plugin_remove_command(
     package: str,
     config_path: Path,
 ) -> None:
-    import subprocess
-    import sys
-
     typer.echo(f"Removing {package}...")
     installed_before = get_installed_plugin_names()
-    uninstall_cmd = ["uv", "pip", "uninstall", "--python", sys.executable, package]
 
     try:
-        result = subprocess.run(
-            uninstall_cmd,
-            capture_output=True,
-            text=True,
-        )
+        result = _run_package_command(action="uninstall", package=package)
     except OSError as e:
-        typer.echo(f"Removal failed: could not execute '{uninstall_cmd[0]}': {e}")
+        typer.echo(f"Removal failed: could not execute a package installer: {e}")
         raise typer.Exit(1) from e
 
     if result.returncode != 0:
@@ -248,7 +267,7 @@ def plugin_list_command(
     config_path: Path,
     console: Console,
 ) -> None:
-    discovered = discover_plugins()
+    discovered = discover_plugins(rules_path=config_path.parent.resolve() / "rules.toml")
     discovered_names = {name for name, _ in discovered}
 
     config_plugins = {}

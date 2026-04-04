@@ -28,5 +28,14 @@ jobs:
       - name: Lint
         run: uv run ruff check
 
+      - name: Typecheck
+        run: uv run mypy nomnom
+
       - name: Test
         run: uv run pytest
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Check distributions
+        run: uvx twine check dist/*

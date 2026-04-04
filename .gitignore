@@ -39,6 +39,7 @@ env/
 
 # Testing
 .pytest_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 
@@ -47,7 +48,6 @@ htmlcov/
 
 # plugins
 plugins/*
-!plugins/nomnom-plugin-rules/
 rules.toml
 
 # config
@@ -55,5 +55,6 @@ config.toml
 
 # ai tools
 .jules/
+.jj/
 .codex/
 .conductor/

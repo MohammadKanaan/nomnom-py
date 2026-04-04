@@ -21,6 +21,7 @@ pip install nomnom-py
 ### Initialize
 
 Generates a default `config.toml` in your project root.
+If you use the built-in `rules` plugin, keep `rules.toml` in that same directory so `nomnom` can read both files together.
 
 ```bash
 nomnom setup
@@ -39,19 +40,20 @@ Use `nomnom watch --once <group>` to process a single watch group one time, or `
 ## Example Configuration
 
 `nomnom` reads `config.toml` from the current project by default, or a custom path passed with `--config`.
+When the built-in `rules` plugin is enabled, `nomnom` also reads `rules.toml` from that same directory.
 
 ```toml
 [[watch]]
 name = "inbox"
 paths = ["./fixtures/inbox"]
-extensions = [".pdf", ".txt"]
+include = ["*.pdf", "*.txt"]
 
 [[watch]]
 name = "archive"
 paths = ["./fixtures/archive"]
 
 [[plugins]]
-name = "nomnom-plugin-rules"
+name = "rules"
 priority = 10
 enabled = true
 ```
@@ -63,7 +65,10 @@ For a fuller starter file, see [`config.example.toml`](config.example.toml).
 ### The Built-in Rules Plugin
 
 A rules plugin for declarative file automation driven by `rules.toml`.
-See [`plugins/nomnom-plugin-rules/README.md`](plugins/nomnom-plugin-rules/README.md) for the rule format and supported actions.
+It ships with the main `nomnom-py` install and is configured as `rules`.
+Keep `config.toml` and `rules.toml` side by side. If you run `nomnom --config /path/to/config.toml`, the built-in plugin will read `/path/to/rules.toml` automatically.
+See [`RULES.md`](RULES.md) for the rule format and supported actions, and
+[`rules.example.toml`](rules.example.toml) for a starter example.
 
 ### Installing Community Plugins
 
@@ -97,6 +102,7 @@ If you'd like to publish your plugin, move it to its own repo and publish it to 
 uv sync --dev
 uv run pytest
 uv run ruff check
+uv run mypy nomnom
 ```
 
 Contributor guidance lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -106,7 +112,7 @@ Contributor guidance lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ```text
 Core Commands:
-  nomnom watch [GROUP] [OPTS]   Start watching (Opts: -c/--config, -v/--verbose, --dry-run, --once)
+  nomnom watch [WATCH_GROUP] [OPTS]  Start watching (Opts: -c/--config, -V/--verbose, --dry-run, --once)
   nomnom setup [OPTS]           Create or update the config file
   nomnom --version / -v         Print installed version
 

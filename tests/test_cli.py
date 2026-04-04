@@ -90,7 +90,7 @@ paths = ["./inbox"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda rules_path=None: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
@@ -117,7 +117,7 @@ paths = ["./inbox"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda rules_path=None: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
@@ -144,7 +144,7 @@ paths = ["./inbox"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda rules_path=None: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
@@ -179,7 +179,7 @@ paths = ["./archive"]
     captured_kwargs = {}
     runner = CliRunner()
 
-    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda rules_path=None: [])
 
     def fake_run_watcher(cfg, plugins, console, **kwargs):
         captured_kwargs.update(kwargs)
@@ -205,7 +205,7 @@ paths = ["./inbox"]
     )
 
     runner = CliRunner()
-    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda rules_path=None: [])
 
     def fail_run_watcher(*_args, **_kwargs):
         raise AssertionError("run_watcher should not be called")
@@ -234,7 +234,7 @@ paths = ["./archive"]
     )
 
     runner = CliRunner()
-    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda: [])
+    monkeypatch.setattr("nomnom.commands.watch.discover_plugins", lambda rules_path=None: [])
 
     def fail_run_watcher(*_args, **_kwargs):
         raise AssertionError("run_watcher should not be called")
@@ -292,6 +292,84 @@ def test_plugin_install_runs_setup_for_new_plugin(
     ]
     assert "Running setup() for plugin 'fresh'..." in result.output
     assert "Setup completed for plugin 'fresh'." in result.output
+
+
+def test_watch_uses_config_rules_path_for_plugin_discovery(monkeypatch, tmp_path) -> None:
+    config_dir = tmp_path / "nested"
+    config_dir.mkdir()
+    config_path = config_dir / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    seen_rules_paths = []
+    runner = CliRunner()
+
+    monkeypatch.setattr(
+        "nomnom.commands.watch.discover_plugins",
+        lambda rules_path=None: seen_rules_paths.append(rules_path) or [],
+    )
+    monkeypatch.setattr("nomnom.commands.watch.run_watcher", lambda *_args, **_kwargs: None)
+
+    result = runner.invoke(app, ["watch", "--config", str(config_path), "--once"])
+
+    assert result.exit_code == 0
+    assert seen_rules_paths == [config_dir.resolve() / "rules.toml"]
+
+
+def test_plugin_list_uses_config_rules_path_for_plugin_discovery(monkeypatch, tmp_path) -> None:
+    config_dir = tmp_path / "nested"
+    config_dir.mkdir()
+    config_path = config_dir / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+""".strip()
+        + "\n"
+    )
+
+    seen_rules_paths = []
+    runner = CliRunner()
+
+    monkeypatch.setattr(
+        "nomnom.commands.plugin.discover_plugins",
+        lambda rules_path=None: seen_rules_paths.append(rules_path) or [],
+    )
+
+    result = runner.invoke(app, ["plugin", "list", "--config", str(config_path)])
+
+    assert result.exit_code == 0
+    assert seen_rules_paths == [config_dir.resolve() / "rules.toml"]
+
+
+def test_setup_uses_config_rules_path_for_plugin_discovery(monkeypatch, tmp_path) -> None:
+    config_dir = tmp_path / "nested"
+    config_dir.mkdir()
+    config_path = config_dir / "config.toml"
+
+    seen_rules_paths = []
+    runner = CliRunner()
+
+    monkeypatch.setattr(
+        "nomnom.commands.setup.discover_plugins",
+        lambda rules_path=None: seen_rules_paths.append(rules_path) or [],
+    )
+
+    result = runner.invoke(
+        app,
+        ["setup", "--config", str(config_path)],
+        input="y\ninbox\n./inbox\n\n\nn\ny\nrules\n50\nn\n",
+    )
+
+    assert result.exit_code == 0
+    assert seen_rules_paths == [config_dir.resolve() / "rules.toml"]
 
 
 def test_plugin_install_skips_setup_with_no_setup_flag(monkeypatch) -> None:
@@ -405,17 +483,81 @@ def test_plugin_install_skips_plugin_without_setup(monkeypatch) -> None:
 
 def test_plugin_install_handles_missing_uv(monkeypatch) -> None:
     runner = CliRunner()
+    seen_cmds = []
+
+    def fake_run(cmd, *args, **kwargs):
+        seen_cmds.append(cmd)
+        if cmd[0] == "uv":
+            raise FileNotFoundError("uv")
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
 
     monkeypatch.setattr("nomnom.commands.plugin.get_installed_plugin_names", lambda: {"existing"})
-    monkeypatch.setattr(
-        "subprocess.run",
-        lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError("uv")),
-    )
+    monkeypatch.setattr("subprocess.run", fake_run)
 
     result = runner.invoke(app, ["plugin", "add", "nomnom-plugin-fresh"])
 
-    assert result.exit_code == 1
-    assert "Installation failed: could not execute 'uv'" in result.output
+    assert result.exit_code == 0
+    assert seen_cmds == [
+        [
+            "uv",
+            "pip",
+            "install",
+            "--python",
+            sys.executable,
+            "--",
+            "nomnom-plugin-fresh",
+        ],
+        [sys.executable, "-m", "pip", "install", "nomnom-plugin-fresh"],
+    ]
+
+
+def test_plugin_remove_falls_back_to_pip_when_uv_is_missing(monkeypatch, tmp_path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "config.toml"
+    config_path.write_text(
+        """
+[[watch]]
+name = "inbox"
+paths = ["./inbox"]
+
+[[plugins]]
+name = "fresh"
+priority = 10
+enabled = true
+""".strip()
+        + "\n"
+    )
+    seen_cmds = []
+
+    def fake_run(cmd, *args, **kwargs):
+        seen_cmds.append(cmd)
+        if cmd[0] == "uv":
+            raise FileNotFoundError("uv")
+        return SimpleNamespace(returncode=0, stderr="", stdout="")
+
+    monkeypatch.setattr(
+        "nomnom.commands.plugin.get_installed_plugin_names",
+        lambda: {"fresh"},
+    )
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    result = runner.invoke(
+        app,
+        ["plugin", "remove", "nomnom-plugin-fresh", "--config", str(config_path)],
+    )
+
+    assert result.exit_code == 0
+    assert seen_cmds == [
+        [
+            "uv",
+            "pip",
+            "uninstall",
+            "--python",
+            sys.executable,
+            "nomnom-plugin-fresh",
+        ],
+        [sys.executable, "-m", "pip", "uninstall", "-y", "nomnom-plugin-fresh"],
+    ]
 
 
 def test_plugin_setup_runs_named_plugin_setup(monkeypatch) -> None:

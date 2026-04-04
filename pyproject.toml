@@ -46,7 +46,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build]
 exclude = [
     "/.conductor",
+    "/.jj",
     "/.jules",
+    "/.mypy_cache",
     "/.pytest_cache",
     "/.ruff_cache",
     "/.uv-cache",

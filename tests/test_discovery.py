@@ -9,6 +9,7 @@ from nomnom.discovery import (
     _discover_local,
     _load_plugin_from_target,
     discover_new_plugins,
+    discover_plugins,
     get_installed_plugin_names,
     prioritize_plugins,
 )
@@ -218,11 +219,144 @@ def test_get_installed_plugin_names(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(
         discovery_module,
+        "_discover_builtin",
+        lambda: (_ for _ in ()).throw(AssertionError("builtin discovery should not run")),
+    )
+    monkeypatch.setattr(
+        discovery_module,
         "entry_points",
         lambda group: [FakeEntryPoint("alpha"), FakeEntryPoint("beta")],
     )
 
     assert get_installed_plugin_names() == {"alpha", "beta"}
+
+
+def test_discover_plugins_returns_builtin_rules_without_installed_or_local(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(discovery_module, "_discover_installed", lambda: [])
+    monkeypatch.setattr(discovery_module, "_discover_local", lambda: [])
+
+    discovered = discover_plugins()
+    discovered_map = {name: plugin for name, plugin in discovered}
+
+    assert "rules" in discovered_map
+    assert discovered_map["rules"].__class__.__name__ == "RulesPlugin"
+
+
+def test_discover_plugins_uses_rules_path_for_builtin_rules(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    rules_toml = project_root / "rules.toml"
+    rules_toml.write_text(
+        """
+[[rule]]
+name = "delete markdown"
+on = "created"
+match = "\\\\.md$"
+action = "delete"
+""".strip()
+        + "\n"
+    )
+
+    other_cwd = tmp_path / "other-cwd"
+    other_cwd.mkdir()
+    monkeypatch.chdir(other_cwd)
+    monkeypatch.setattr(discovery_module, "_discover_installed", lambda: [])
+    monkeypatch.setattr(discovery_module, "_discover_local", lambda: [])
+
+    discovered = discover_plugins(rules_path=rules_toml)
+    discovered_map = {name: plugin for name, plugin in discovered}
+
+    rules_plugin = discovered_map["rules"]
+    assert len(rules_plugin._rules) == 1
+    assert rules_plugin._rules[0].name == "delete markdown"
+
+
+def test_discover_plugins_prefers_rules_path_over_cwd(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "rules.toml").write_text(
+        """
+[[rule]]
+name = "project rule"
+on = "created"
+match = "\\\\.md$"
+action = "delete"
+""".strip()
+        + "\n"
+    )
+
+    cwd_root = tmp_path / "cwd"
+    cwd_root.mkdir()
+    (cwd_root / "rules.toml").write_text(
+        """
+[[rule]]
+name = "cwd rule"
+on = "created"
+match = "\\\\.txt$"
+action = "delete"
+""".strip()
+        + "\n"
+    )
+
+    monkeypatch.chdir(cwd_root)
+    monkeypatch.setattr(discovery_module, "_discover_installed", lambda: [])
+    monkeypatch.setattr(discovery_module, "_discover_local", lambda: [])
+
+    discovered = discover_plugins(rules_path=project_root / "rules.toml")
+    discovered_map = {name: plugin for name, plugin in discovered}
+
+    rules_plugin = discovered_map["rules"]
+    assert len(rules_plugin._rules) == 1
+    assert rules_plugin._rules[0].name == "project rule"
+
+
+def test_discover_plugins_merges_builtin_installed_and_local_with_precedence(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    builtin_rules = object()
+    installed_rules = object()
+    local_rules = object()
+    builtin_only = object()
+    installed_only = object()
+    local_only = object()
+
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_builtin",
+        lambda rules_path=None: [("rules", builtin_rules), ("builtin-only", builtin_only)],
+    )
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_installed",
+        lambda: [("rules", installed_rules), ("installed-only", installed_only)],
+    )
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_local",
+        lambda: [("rules", local_rules), ("local-only", local_only)],
+    )
+    caplog.set_level("INFO")
+
+    discovered = discover_plugins()
+    discovered_map = {name: plugin for name, plugin in discovered}
+
+    assert discovered_map == {
+        "rules": local_rules,
+        "builtin-only": builtin_only,
+        "installed-only": installed_only,
+        "local-only": local_only,
+    }
+    assert "Installed plugin 'rules' overrides builtin version" in caplog.text
+    assert "Local plugin 'rules' overrides installed version" in caplog.text
 
 
 def test_discover_local_supports_absolute_self_imports(tmp_path: Path) -> None:
@@ -326,6 +460,11 @@ def test_discover_new_plugins_filters_known_plugins(
         "invalidate_caches",
         lambda: invalidate_calls.append(True),
     )
+    monkeypatch.setattr(
+        discovery_module,
+        "_discover_builtin",
+        lambda: (_ for _ in ()).throw(AssertionError("builtin discovery should not run")),
+    )
 
     existing_plugin = object()
     new_plugin = object()
@@ -335,7 +474,7 @@ def test_discover_new_plugins_filters_known_plugins(
         lambda: [("existing", existing_plugin), ("fresh", new_plugin)],
     )
 
-    discovered = discover_new_plugins({"existing"})
+    discovered = discover_new_plugins({"existing", "rules"})
 
     assert invalidate_calls == [True]
     assert discovered == [("fresh", new_plugin)]

@@ -7,7 +7,7 @@
 - **Entry point:** `nomnom/cli.py` (Typer app)
 - **Package:** `nomnom/`
 - **Tests:** `tests/`
-- **Built-in plugin:** `plugins/nomnom-plugin-rules/`
+- **Built-in plugin:** `nomnom/builtin/rules.py`
 
 ## Tech Stack
 
