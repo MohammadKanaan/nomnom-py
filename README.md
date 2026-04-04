@@ -107,6 +107,22 @@ uv run mypy nomnom
 
 Contributor guidance lives in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
+## Dependencies
+
+`nomnom` is built with these open-source libraries:
+
+- [rich](https://github.com/Textualize/rich) — MIT License
+- [typer](https://github.com/tiangolo/typer) — MIT License
+- [watchfiles](https://github.com/samuelcolvin/watchfiles) — MIT License
+- [tomli-w](https://github.com/hcloskey/tomli-w) — BSD-3-Clause License
+
+Dev dependencies:
+
+- [pytest](https://github.com/pytest-dev/pytest) — MIT License
+- [pytest-cov](https://github.com/pytest-dev/pytest-cov) — MIT License
+- [ruff](https://github.com/astral-sh/ruff) — MIT License
+- [mypy](https://github.com/python/mypy) — MIT License
+
 
 ## CLI Reference
 
