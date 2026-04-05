@@ -100,6 +100,36 @@ The generated package includes a `pyproject.toml` entry point and a stub plugin 
 
 If you'd like to publish your plugin, move it to its own repo and publish it to GitHub or PyPI. There is no system for discovering plugins yet but shoot me an email if interested.
 
+### Plugin API
+
+Plugins implement two methods:
+
+```python
+def matches(self, event: FileEvent) -> bool: ...
+def handle(self, event: FileEvent) -> list[Effect]: ...
+```
+
+#### `FileEvent`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `event_type` | `EventType` | `EventType.CREATED`, `MODIFIED`, or `DELETED` |
+| `path` | `Path` | Absolute path to the changed file |
+| `watch_group` | `str` | Name of the watch group that triggered this event |
+| `created_at` | `datetime` | UTC timestamp when the event was created |
+
+#### Effects
+
+`handle()` returns a list of zero or more `Effect` values. The dispatcher executes them in order.
+
+| Effect | Fields | Description |
+|--------|--------|-------------|
+| `MoveFile` | `source: Path`, `destination: Path`, `overwrite: bool = True` | Moves a file. Creates parent directories as needed. Skipped if source is missing; skipped (or overwrites) if destination exists based on `overwrite`. |
+| `DeleteFile` | `path: Path` | Deletes a file. Skipped if the file does not exist. |
+| `CreateFile` | `path: Path`, `content: bytes` | Creates a file with the given content, creating parent directories as needed. |
+| `EditFile` | `path: Path`, `action: EditAction`, `content: bytes` | Prepends or appends `content` to an existing file. `action` is `EditAction.PREPEND` or `EditAction.APPEND`. |
+| `EmitEvent` | `event: FileEvent` | Injects a new `FileEvent` back into the dispatcher. Useful for chaining logic across plugins. Depth is capped at 10 to prevent infinite loops. |
+
 ## Development
 
 ```bash
