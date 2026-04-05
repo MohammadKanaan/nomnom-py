@@ -12,6 +12,19 @@ from nomnom.config import load_config
 from nomnom.discovery import discover_plugins, prioritize_plugins
 from nomnom.watcher import run_watcher
 
+NOMNOM_ASCII = """\
+,--,--,  ,---. ,--,--,--.,--,--,  ,---. ,--,--,--.
+|      \\| .-. ||        ||      \\| .-. ||        |
+|  ||  |' '-' '|  |  |  ||  ||  |' '-' '|  |  |  |
+`--''--' `---' `--`--`--'`--''--' `---' `--`--`--'
+"""
+
+
+def show_ascii_splash(console: Console) -> None:
+    """Display ASCII art splash screen."""
+    console.print(Panel(f"[#F9B2D7]{NOMNOM_ASCII}[/#F9B2D7]", border_style="cyan", padding=(1, 2)))
+    console.print()
+
 
 def watch_command(
     *,
@@ -72,6 +85,8 @@ def watch_command(
         for entry in prioritized_plugins
         if config_plugin_status.get(entry.name, True)
     ]
+
+    show_ascii_splash(console)
 
     banner = Panel(
         f"[bold cyan]nomnom[/] v{nomnom.get_version()}\n"
