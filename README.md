@@ -1,5 +1,9 @@
 # nomnom
 
+[![CI](https://github.com/MohammadKanaan/nomnom-py/actions/workflows/ci.yml/badge.svg)](https://github.com/MohammadKanaan/nomnom-py/actions/workflows/ci.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/nomnom-py)](https://pypi.org/project/nomnom-py/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/nomnom-py)](https://pypi.org/project/nomnom-py/)
+
 `nomnom` is an extensible file watcher for local automation. The core detects file changes and fires events. Plugins do the actual work: moving files, enriching them, or kicking off downstream workflows.
 
 ## Install
