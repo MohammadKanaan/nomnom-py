@@ -1,6 +1,6 @@
 [project]
 name = "nomnom-py"
-version = "1.1.0"
+version = "1.1.1"
 license = { text = "MIT" }
 license-files = ["LICENSE.md"]
 description = "Plugin-based CLI file watcher"
